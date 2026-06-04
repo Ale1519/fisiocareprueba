@@ -1,208 +1,219 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { supabase } from '../lib/supabase';
+import { Search, MapPin, Activity, Shield, Users, Calendar, ArrowRight, Star } from 'lucide-react';
 
-interface Especialidad { id: string; nombre: string; }
-interface Distrito { id: string; nombre: string; }
+export default function Landing() {
+  const [especialidad, setEspecialidad] = useState('');
+  const [distrito, setDistrito] = useState('');
+  const [loading, setLoading] = useState(false);
 
-export const Landing = () => {
-  const [especialidades, setEspecialidades] = useState<Especialidad[]>([]);
-  const [distritos, setDistritos] = useState<Distrito[]>([]);
-  const [filtroEspecialidad, setFiltroEspecialidad] = useState('');
-  const [filtroDistrito, setFiltroDistrito] = useState('');
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const cargarCatalogos = async () => {
-      const { data: dataEsp } = await supabase.from('especialidades').select('*').order('nombre');
-      if (dataEsp) setEspecialidades(dataEsp);
-
-      const { data: dataDist } = await supabase.from('distritos').select('*').order('nombre');
-      if (dataDist) setDistritos(dataDist);
-
-      setLoading(false);
-    };
-    cargarCatalogos();
-  }, []);
-
-  // 🛠️ MODIFICACIÓN 1: Función para procesar la búsqueda de especialistas
-  const manejarBusqueda = (e: React.FormEvent) => {
+  const handleBuscar = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log("Buscando fisioterapeutas con:", { filtroEspecialidad, filtroDistrito });
-    
-    // Aquí implementaremos la redirección o el filtrado dinámico. 
-    // Por ahora, lanzará un aviso controlado para verificar que el formulario funciona:
-    alert(`Buscando especialistas en el Distrito ID: ${filtroDistrito || 'Todos'} con Especialidad ID: ${filtroEspecialidad || 'Todas'}`);
+    setLoading(true);
+    // Aquí irá la lógica para redirigir o filtrar con Supabase
+    setTimeout(() => setLoading(false), 800);
   };
 
   return (
-    <div className="min-h-screen bg-white text-gray-900 font-sans">
+    <div className="min-h-screen bg-slate-50 text-slate-800 font-sans">
       
-      {/* HEADER / NAVBAR NAVIGATION */}
-      <nav className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center border-b border-gray-100">
-        <div className="text-2xl font-black text-purple-700 tracking-tight">FisioCare</div>
-        <div className="hidden md:flex items-center gap-8 text-sm font-medium text-gray-600">
-          <a href="#" className="hover:text-purple-600 transition">Inicio</a>
-          <a href="#" className="hover:text-purple-600 transition">Especialistas</a>
-          <a href="#" className="hover:text-purple-600 transition">FAQ</a>
-          {/* 🛠️ MODIFICACIÓN 2: Enlace directo al registro de profesionales */}
-          <a href="/registro?rol=fisioterapeuta" className="text-purple-600 font-semibold hover:underline">¿Eres fisio? Únete</a>
-        </div>
-        <div className="flex items-center gap-4">
-          <button className="text-sm font-semibold text-gray-700 hover:text-purple-600 transition">Iniciar sesión</button>
-          <button className="bg-purple-600 hover:bg-purple-700 text-white text-sm font-bold px-4 py-2 rounded-xl shadow-sm transition">Registrarse</button>
+      {/* NAVBAR */}
+      <nav className="bg-white shadow-sm sticky top-0 z-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Activity className="h-6 w-6 text-purple-600" />
+            <span className="text-xl font-bold text-purple-900 tracking-tight">FisioCare</span>
+          </div>
+          <div className="hidden md:flex items-center gap-6 text-sm font-medium text-slate-600">
+            <a href="#beneficios" className="hover:text-purple-600 transition">Beneficios</a>
+            <a href="#como-funciona" className="hover:text-purple-600 transition">¿Cómo funciona?</a>
+            <a href="#testimonios" className="hover:text-purple-600 transition">Testimonios</a>
+          </div>
+          <div className="flex items-center gap-3">
+            <button className="text-sm font-medium text-purple-600 hover:text-purple-700 px-3 py-2">
+              Iniciar Sesión
+            </button>
+            <button className="text-sm font-medium bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg shadow-sm transition">
+              Registrarse
+            </button>
+          </div>
         </div>
       </nav>
 
       {/* HERO SECTION */}
-      <header className="max-w-7xl mx-auto px-6 py-16 lg:py-24 grid lg:grid-cols-2 gap-12 items-center">
-        <div className="space-y-6 text-left">
-          <div className="inline-flex items-center gap-2 bg-purple-50 text-purple-700 text-xs font-bold px-3 py-1.5 rounded-full">
-            ✨ Fisioterapeutas verificados en Lima
-          </div>
-          <h1 className="text-4xl md:text-5xl lg:text-6xl font-black text-gray-900 leading-tight">
-            Encuentra tu <br />
-            <span className="text-purple-600">fisioterapeuta verificado</span>, donde estés
+      <header className="bg-gradient-to-br from-purple-900 via-purple-800 to-indigo-950 text-white py-20 px-4">
+        <div className="max-w-5xl mx-auto text-center space-y-6">
+          <span className="bg-purple-500/20 text-purple-300 text-xs font-semibold tracking-wider uppercase px-3 py-1 rounded-full border border-purple-500/30">
+            Fisioterapia de confianza a tu alcance
+          </span>
+          <h1 className="text-4xl sm:text-5xl md:text-6xl font-extrabold tracking-tight max-w-3xl mx-auto leading-tight">
+            Encuentra al fisioterapeuta ideal para tu recuperación
           </h1>
-          <p className="text-lg text-gray-600 max-w-xl">
-            Reserva sesiones a domicilio o por videollamada con profesionales colegiados. Recupérate con confianza, en tus tiempos.
+          <p className="text-lg sm:text-xl text-purple-100 max-w-2xl mx-auto font-light">
+            Reserva citas con profesionales calificados en Lima para atención a domicilio o en consultorio. Tu bienestar no puede esperar.
           </p>
-          
-          <div className="flex flex-wrap gap-4 pt-2">
-            <button className="bg-purple-600 hover:bg-purple-700 text-white font-extrabold px-8 py-3.5 rounded-xl shadow-md transition">Soy paciente</button>
-            <button className="bg-gray-100 hover:bg-gray-200 text-gray-800 font-bold px-8 py-3.5 rounded-xl transition">Soy fisioterapeuta</button>
+
+          {/* BUSCADOR PRINCIPAL */}
+          <div className="pt-6 max-w-4xl mx-auto">
+            <form onSubmit={handleBuscar} className="bg-white p-3 rounded-2xl shadow-xl grid grid-cols-1 md:grid-cols-3 gap-3 text-slate-800">
+              
+              {/* Selector Especialidad */}
+              <div className="flex items-center gap-2 px-3 py-2 border-b md:border-b-0 md:border-r border-slate-200">
+                <Search className="h-5 w-5 text-purple-500 flex-shrink-0" />
+                <select 
+                  className="w-full bg-transparent focus:outline-none text-sm appearance-none cursor-pointer font-medium text-slate-700"
+                  value={especialidad}
+                  onChange={(e) => setEspecialidad(e.target.value)}
+                >
+                  <option value="">¿Qué especialidad buscas?</option>
+                  <option value="traumatologia">Fisioterapia Traumatológica</option>
+                  <option value="deportiva">Fisioterapia Deportiva</option>
+                  <option value="neurologica">Fisioterapia Neurológica</option>
+                  <option value="pediatrica">Fisioterapia Pediátrica</option>
+                  <option value="geriatrica">Fisioterapia Geriátrica</option>
+                </select>
+              </div>
+
+              {/* Selector Distrito */}
+              <div className="flex items-center gap-2 px-3 py-2 border-b md:border-b-0 md:border-r border-slate-200">
+                <MapPin className="h-5 w-5 text-purple-500 flex-shrink-0" />
+                <select 
+                  className="w-full bg-transparent focus:outline-none text-sm appearance-none cursor-pointer font-medium text-slate-700"
+                  value={distrito}
+                  onChange={(e) => setDistrito(e.target.value)}
+                >
+                  <option value="">¿Tu distrito en Lima?</option>
+                  <option value="miraflores">Miraflores</option>
+                  <option value="san-isidro">San Isidro</option>
+                  <option value="surco">Santiago de Surco</option>
+                  <option value="san-borja">San Borja</option>
+                  <option value="los-olivos">Los Olivos</option>
+                  <option value="la-molina">La Molina</option>
+                </select>
+              </div>
+
+              {/* Botón de Acción */}
+              <button 
+                type="submit" 
+                disabled={loading}
+                className="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-xl text-sm py-3 px-6 shadow transition flex items-center justify-center gap-2 disabled:opacity-70"
+              >
+                {loading ? 'Buscando...' : 'Buscar Fisioterapeuta'}
+                <ArrowRight className="h-4 w-4" />
+              </button>
+            </form>
           </div>
         </div>
-
-        {/* BUSCADOR INTEGRADO EN EL HERO */}
-        {/* 🛠️ MODIFICACIÓN 3: Se transformó el div contenedor en un <form> con onSubmit */}
-        <form onSubmit={manejarBusqueda} className="bg-gradient-to-tr from-purple-700 to-indigo-800 p-8 rounded-3xl shadow-xl text-white space-y-5">
-          <h3 className="text-xl font-bold tracking-tight">Buscar fisioterapeuta ideal</h3>
-          <div className="space-y-4">
-            <div>
-              <label className="block text-xs font-bold text-purple-200 uppercase mb-1">¿Qué especialidad buscas?</label>
-              <select 
-                value={filtroEspecialidad} 
-                onChange={(e) => setFiltroEspecialidad(e.target.value)}
-                disabled={loading}
-                className="w-full p-3 rounded-xl bg-white/10 border border-white/20 text-white focus:outline-none focus:ring-2 focus:ring-purple-400 disabled:opacity-50"
-              >
-                <option value="" className="text-black">Todas las especialidades</option>
-                {especialidades.map((esp) => (
-                  <option key={esp.id} value={esp.id} className="text-black">{esp.nombre}</option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-xs font-bold text-purple-200 uppercase mb-1">¿Tu distrito en Lima?</label>
-              <select 
-                value={filtroDistrito} 
-                onChange={(e) => setFiltroDistrito(e.target.value)}
-                disabled={loading}
-                className="w-full p-3 rounded-xl bg-white/10 border border-white/20 text-white focus:outline-none focus:ring-2 focus:ring-purple-400 disabled:opacity-50"
-              >
-                <option value="" className="text-black">Cualquier distrito</option>
-                {distritos.map((dist) => (
-                  <option key={dist.id} value={dist.id} className="text-black">{dist.nombre}</option>
-                ))}
-              </select>
-            </div>
-
-            {/* 🛠️ MODIFICACIÓN 4: Botón de tipo submit adaptado al estado de carga */}
-            <button 
-              type="submit" 
-              disabled={loading}
-              className="w-full bg-white hover:bg-purple-50 text-purple-700 font-black py-3.5 rounded-xl shadow-md transition duration-200 mt-2 disabled:bg-gray-200 disabled:text-gray-400"
-            >
-              {loading ? 'Cargando filtros...' : 'Buscar Fisioterapeutas'}
-            </button>
-          </div>
-        </form>
       </header>
 
-      {/* SECCIÓN: ¿POR QUÉ FISIOCARE? */}
-      <section className="bg-gray-50 py-20 px-6">
-        <div className="max-w-7xl mx-auto text-center space-y-4">
-          <h2 className="text-3xl font-black text-gray-900">¿Por qué FisioCare?</h2>
-          <p className="text-gray-600 max-w-xl mx-auto">Diseñado para que tu recuperación sea simple y segura.</p>
-          
-          <div className="grid md:grid-cols-3 gap-8 pt-10">
-            <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100 text-left space-y-3">
-              <div className="w-12 h-12 bg-purple-100 text-purple-600 rounded-xl flex items-center justify-center font-bold text-xl">🛡️</div>
-              <h4 className="text-lg font-bold text-gray-900">Profesionales verificados</h4>
-              <p className="text-gray-500 text-sm leading-relaxed">Todos nuestros fisioterapeutas tienen colegiatura validada y documentación al día.</p>
-            </div>
+      {/* BENEFICIOS SECTION */}
+      <section id="beneficios" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
+        <div className="text-center space-y-3 mb-16">
+          <h2 className="text-3xl font-bold text-slate-900 tracking-tight">¿Por qué elegir FisioCare?</h2>
+          <p className="text-slate-500 max-w-xl mx-auto">Diseñamos una plataforma pensada en tu comodidad, seguridad y una pronta recuperación.</p>
+        </div>
 
-            <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100 text-left space-y-3">
-              <div className="w-12 h-12 bg-purple-100 text-purple-600 rounded-xl flex items-center justify-center font-bold text-xl">🏠</div>
-              <h4 className="text-lg font-bold text-gray-900">A domicilio o por video</h4>
-              <p className="text-gray-500 text-sm leading-relaxed">Atención en tu hogar en Lima o sesiones online desde donde estés.</p>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100 hover:shadow-md transition space-y-4">
+            <div className="h-12 w-12 bg-purple-100 rounded-xl flex items-center justify-center text-purple-600">
+              <Shield className="h-6 w-6" />
             </div>
+            <h3 className="text-xl font-semibold text-slate-900">Profesionales Verificados</h3>
+            <p className="text-slate-500 text-sm leading-relaxed">
+              Validamos el perfil de cada terapeuta, sus certificaciones y antecedentes para garantizarte una atención segura y ética.
+            </p>
+          </div>
 
-            <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100 text-left space-y-3">
-              <div className="w-12 h-12 bg-purple-100 text-purple-600 rounded-xl flex items-center justify-center font-bold text-xl">👤</div>
-              <h4 className="text-lg font-bold text-gray-900">Cuidado personalizado</h4>
-              <p className="text-gray-500 text-sm leading-relaxed">Reseñas reales, especialidades claras y precios transparentes para elegir mejor.</p>
+          <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100 hover:shadow-md transition space-y-4">
+            <div className="h-12 w-12 bg-purple-100 rounded-xl flex items-center justify-center text-purple-600">
+              <Calendar className="h-6 w-6" />
+            </div>
+            <h3 className="text-xl font-semibold text-slate-900">Flexibilidad de Horarios</h3>
+            <p className="text-slate-500 text-sm leading-relaxed">
+              Tú eliges el momento. Agenda tu sesión en el horario que mejor se adapte a tu rutina diaria, sin complicaciones ni llamadas.
+            </p>
+          </div>
+
+          <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100 hover:shadow-md transition space-y-4">
+            <div className="h-12 w-12 bg-purple-100 rounded-xl flex items-center justify-center text-purple-600">
+              <Users className="h-6 w-6" />
+            </div>
+            <h3 className="text-xl font-semibold text-slate-900">Atención Personalizada</h3>
+            <p className="text-slate-500 text-sm leading-relaxed">
+              Ya sea en la comodidad de tu hogar o directo en el consultorio del especialista, recibes un tratamiento enfocado en tu caso específico.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      {/* CÓMO FUNCIONA SECTION */}
+      <section id="como-funciona" className="bg-white py-20 border-y border-slate-100">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center space-y-3 mb-16">
+            <h2 className="text-3xl font-bold text-slate-900 tracking-tight">Tu recuperación en 3 simples pasos</h2>
+            <p className="text-slate-500 max-w-xl mx-auto">Olvídate de las largas esperas. Conecta y agenda en menos de 5 minutos.</p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-12 relative">
+            <div className="text-center space-y-3 relative z-10">
+              <div className="h-12 w-12 bg-purple-600 text-white rounded-full flex items-center justify-center mx-auto text-lg font-bold shadow-md">1</div>
+              <h3 className="text-lg font-semibold text-slate-900 pt-2">Filtra y Busca</h3>
+              <p className="text-slate-500 text-sm max-w-xs mx-auto">Selecciona la especialidad de fisioterapia que necesitas y tu distrito actual.</p>
+            </div>
+            <div className="text-center space-y-3 relative z-10">
+              <div className="h-12 w-12 bg-purple-600 text-white rounded-full flex items-center justify-center mx-auto text-lg font-bold shadow-md">2</div>
+              <h3 className="text-lg font-semibold text-slate-900 pt-2">Compara Perfiles</h3>
+              <p className="text-slate-500 text-sm max-w-xs mx-auto">Revisa las opiniones de otros pacientes, sus precios, horarios y experiencia previa.</p>
+            </div>
+            <div className="text-center space-y-3 relative z-10">
+              <div className="h-12 w-12 bg-purple-600 text-white rounded-full flex items-center justify-center mx-auto text-lg font-bold shadow-md">3</div>
+              <h3 className="text-lg font-semibold text-slate-900 pt-2">Agenda tu Cita</h3>
+              <p className="text-slate-500 text-sm max-w-xs mx-auto">Reserva de forma segura y prepárate para empezar tu proceso de rehabilitación.</p>
             </div>
           </div>
         </div>
       </section>
 
-      {/* SECCIÓN: CÓMO FUNCIONA */}
-      <section className="py-20 px-6 max-w-7xl mx-auto text-center space-y-4">
-        <h2 className="text-3xl font-black text-gray-900">Cómo funciona</h2>
-        <p className="text-gray-600">En 3 simples pasos estás en sesión.</p>
+      {/* TESTIMONIOS SECTION */}
+      <section id="testimonios" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
+        <div className="text-center space-y-3 mb-16">
+          <h2 className="text-3xl font-bold text-slate-900 tracking-tight">Lo que dicen nuestros pacientes</h2>
+          <p className="text-slate-500 max-w-xl mx-auto">Historias reales de personas que recuperaron su movilidad gracias a FisioCare.</p>
+        </div>
 
-        <div className="grid md:grid-cols-3 gap-8 pt-10 position-relative">
-          <div className="space-y-3">
-            <div className="w-10 h-10 bg-purple-600 text-white rounded-full flex items-center justify-center font-black mx-auto">1</div>
-            <h4 className="text-lg font-bold">Busca</h4>
-            <p className="text-gray-500 text-sm max-w-xs mx-auto">Filtra por modalidad, distrito, precio y especialidad.</p>
-          </div>
-
-          <div className="space-y-3">
-            <div className="w-10 h-10 bg-purple-600 text-white rounded-full flex items-center justify-center font-black mx-auto">2</div>
-            <h4 className="text-lg font-bold">Elige y agenda</h4>
-            <p className="text-gray-500 text-sm max-w-xs mx-auto">Revisa perfiles, reseñas y reserva el horario que prefieres.</p>
-          </div>
-
-          <div className="space-y-3">
-            <div className="w-10 h-10 bg-purple-600 text-white rounded-full flex items-center justify-center font-black mx-auto">3</div>
-            <h4 className="text-lg font-bold">Recibe tu sesión</h4>
-            <p className="text-gray-500 text-sm max-w-xs mx-auto">Paga seguro con Yape o tarjeta y empieza tu recuperación.</p>
-          </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {[
+            { name: "Carlos Mendoza", role: "Paciente (Surco)", text: "Excelente plataforma. Encontré un especialista en fisioterapia deportiva para mi lesión de rodilla el mismo día. La atención a domicilio fue impecable." },
+            { name: "Ana Lucía Ortiz", role: "Paciente (Miraflores)", text: "Me encanta la facilidad para agendar. Los perfiles son super claros y te da mucha tranquilidad saber que los terapeutas están completamente verificados." },
+            { name: "Miguel Benítez", role: "Paciente (San Borja)", text: "Mi padre necesitaba terapia geriátrica continua. Gracias a FisioCare conectamos con un profesional con una paciencia y calidad humana increíbles." }
+          ].map((item, idx) => (
+            <div key={idx} className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col justify-between">
+              <p className="text-slate-600 text-sm italic leading-relaxed">"{item.text}"</p>
+              <div className="flex items-center gap-3 pt-6 border-t border-slate-100 mt-4">
+                <div className="h-10 w-10 bg-gradient-to-tr from-purple-500 to-indigo-600 rounded-full flex items-center justify-center text-white text-xs font-bold uppercase">
+                  {item.name.charAt(0)}{item.name.split(' ')[1]?.charAt(0)}
+                </div>
+                <div>
+                  <h4 className="text-sm font-semibold text-slate-900">{item.name}</h4>
+                  <p className="text-xs text-slate-400">{item.role}</p>
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
       </section>
 
       {/* FOOTER */}
-      <footer className="bg-gray-900 text-gray-400 py-12 px-6 border-t border-gray-800">
-        <div className="max-w-7xl mx-auto grid md:grid-cols-4 gap-8 text-sm">
-          <div className="space-y-3">
-            <div className="text-white text-xl font-black">FisioCare</div>
-            <p className="text-xs">Conectamos pacientes con fisioterapeutas verificados en Lima.</p>
+      <footer className="bg-slate-900 text-slate-400 py-12 border-t border-slate-800">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row items-center justify-between gap-6 text-sm">
+          <div className="flex items-center gap-2 text-white font-bold text-lg">
+            <Activity className="h-5 w-5 text-purple-500" />
+            <span>FisioCare</span>
           </div>
-          <div>
-            <h5 className="text-white font-bold mb-3">Pacientes</h5>
-            <ul className="space-y-2 text-xs">
-              <li><a href="#" className="hover:text-white">Buscar fisioterapeuta</a></li>
-              <li><a href="#" className="hover:text-white">Preguntas frecuentes</a></li>
-            </ul>
-          </div>
-          <div>
-            <h5 className="text-white font-bold mb-3">Profesionales</h5>
-            <ul className="space-y-2 text-xs">
-              <li><a href="/registro?rol=fisioterapeuta" className="hover:text-white">Únete como fisio</a></li>
-            </ul>
-          </div>
-          <div>
-            <h5 className="text-white font-bold mb-3">Contacto</h5>
-            <p className="text-xs">hola@fisiocare.pe</p>
-            <p className="text-xs">+51 999 888 777</p>
-            <p className="text-xs mt-2 text-gray-500">Lima, Perú</p>
-          </div>
+          <p>© {new Date().getFullYear()} FisioCare. Todos los derechos reservados. Desarrollado para Lima, Perú.</p>
         </div>
       </footer>
 
     </div>
   );
-};
+}
