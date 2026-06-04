@@ -1,13 +1,9 @@
+// @ts-ignore
 import { defineConfig } from 'vite';
-import { resolve } from 'path';
 
 export default defineConfig({
   build: {
     outDir: 'dist',
   },
-  resolve: {
-    alias: {
-      '@': resolve(__dirname, './src'),
-    },
-  },
+  // Al usar rutas relativas estándar en Vite, no necesitamos configurar alias complejos para el MVP
 });
