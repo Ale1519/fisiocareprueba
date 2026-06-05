@@ -36,22 +36,39 @@ export default function RegisterPaciente() {
     e.preventDefault();
     if (!isAllValid) return;
 
-    const { data, error } = await supabase.auth.signUp({ email, password });
-    if (error) { alert(error.message); return; }
+    try {
+      // 1. Registro en Auth
+      const { data, error: signUpError } = await supabase.auth.signUp({ 
+        email, 
+        password,
+        options: { data: { rol: 'paciente' } } // Pasamos el rol aquí
+      });
 
-    if (data.user) {
-      // Inserción directa ya que sabemos que es paciente
-      await supabase.from('usuarios').insert([{ id: data.user.id, nombre, rol: 'paciente', email }]);
-      await supabase.from('pacientes').insert([{ id: data.user.id, nombre_completo: nombre, telefono }]);
-      
-      alert("Cuenta creada con éxito");
-      navigate('/dashboard-paciente');
+      if (signUpError) throw signUpError;
+
+      if (data.user) {
+        // 2. Inserción/Actualización en pacientes
+        // Upsert evita errores de duplicidad si el Trigger ya creó el registro base
+        const { error: profileError } = await supabase.from('pacientes').upsert([{ 
+          id: data.user.id, 
+          nombre_completo: nombre, 
+          telefono 
+        }]);
+
+        if (profileError) throw profileError;
+        
+        alert("Cuenta creada con éxito");
+        navigate('/dashboard-paciente');
+      }
+    } catch (err: any) {
+      console.error("Error detallado:", err);
+      alert("Error al registrar: " + err.message);
     }
   };
 
+  // ... resto del JSX igual que tenías ...
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-[#F8FAFC] p-4">
-      {/* Logo */}
       <div className="flex items-center gap-2 mb-8 text-[#0A1E3D]">
         <div className="bg-[#0A1E3D] p-2 rounded-xl"><Activity className="h-6 w-6 text-white" /></div>
         <span className="text-2xl font-bold tracking-tight">FisioCare</span>
@@ -81,7 +98,6 @@ export default function RegisterPaciente() {
             </button>
           </div>
 
-          {/* Validaciones */}
           <div className="bg-slate-50 p-4 rounded-xl text-xs space-y-1 text-slate-600">
             <ValidationItem label="Mínimo 8 caracteres" isValid={rules.length} />
             <ValidationItem label="Una letra mayúscula" isValid={rules.upper} />
@@ -93,15 +109,7 @@ export default function RegisterPaciente() {
             Crear cuenta
           </button>
         </form>
-
-        <p className="text-center mt-6 text-sm text-slate-600">
-          ¿Ya tienes cuenta? <button onClick={() => navigate('/login')} className="text-[#0A1E3D] font-bold">Inicia sesión</button>
-        </p>
       </div>
-
-      <button onClick={() => navigate('/')} className="mt-8 text-slate-500 text-sm flex items-center gap-2">
-        <ArrowLeft className="h-4 w-4" /> Volver al inicio
-      </button>
     </div>
   );
 }
