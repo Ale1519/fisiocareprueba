@@ -8,37 +8,50 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    setIsLoading(true);
 
-    const { data: authData, error: authError } = await supabase.auth.signInWithPassword({ 
-      email, 
-      password 
-    });
-    
-    if (authError) {
-      setError("El correo o la contraseña son incorrectos. Por favor, intenta de nuevo.");
-      return;
+    try {
+      // 1. Autenticación
+      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      });
+
+      if (authError) throw new Error("Correo o contraseña incorrectos.");
+
+      // 2. Obtener rol del usuario (Síncrono con tabla 'usuarios')
+      const { data: userData, error: userError } = await supabase
+        .from('usuarios')
+        .select('rol')
+        .eq('id', authData.user.id)
+        .single();
+
+      if (userError || !userData) {
+        throw new Error("No se pudo cargar el perfil del usuario.");
+      }
+
+      // 3. Redirección basada en rol
+      if (userData.rol === 'fisioterapeuta') {
+        navigate('/dashboard-fisio');
+      } else {
+        navigate('/dashboard-paciente');
+      }
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setIsLoading(false);
     }
-
-    const { data: userData } = await supabase
-      .from('usuarios')
-      .select('rol')
-      .eq('id', authData.user.id)
-      .single();
-
-    if (userData?.rol === 'fisioterapeuta') navigate('/dashboard-fisio');
-    else navigate('/dashboard-paciente');
   };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#F8FAFC] p-4">
       <div className="w-full max-w-md">
-        
-        {/* Logo */}
         <div className="flex justify-center mb-8 gap-2 items-center text-[#0A1E3D]">
           <div className="bg-[#0A1E3D] p-2 rounded-xl">
              <Activity className="h-6 w-6 text-white" />
@@ -56,9 +69,8 @@ export default function LoginPage() {
           
           <p className="text-slate-500 mb-8 -mt-6 ml-14">Ingresa para continuar</p>
 
-          {/* Cajita de Error */}
           {error && (
-            <div className="mb-6 flex items-center gap-3 p-4 bg-red-50 text-red-600 rounded-xl border border-red-100 animate-in fade-in slide-in-from-top-2">
+            <div className="mb-6 flex items-center gap-3 p-4 bg-red-50 text-red-600 rounded-xl border border-red-100">
               <AlertCircle className="h-5 w-5 shrink-0" />
               <p className="text-sm font-medium">{error}</p>
             </div>
@@ -69,8 +81,10 @@ export default function LoginPage() {
               <input 
                 type="email" 
                 placeholder="Correo electrónico" 
-                className={`w-full pl-4 pr-12 py-4 rounded-xl border ${error ? 'border-red-300' : 'border-slate-200'} focus:ring-2 focus:ring-[#0A1E3D] outline-none transition`}
+                className="w-full pl-4 pr-12 py-4 rounded-xl border border-slate-200 focus:ring-2 focus:ring-[#0A1E3D] outline-none transition"
                 onChange={(e) => setEmail(e.target.value)}
+                disabled={isLoading}
+                required 
               />
               <Mail className="absolute right-4 top-4 h-5 w-5 text-slate-400" />
             </div>
@@ -79,8 +93,10 @@ export default function LoginPage() {
               <input 
                 type={showPassword ? "text" : "password"} 
                 placeholder="Contraseña" 
-                className={`w-full pl-4 pr-12 py-4 rounded-xl border ${error ? 'border-red-300' : 'border-slate-200'} focus:ring-2 focus:ring-[#0A1E3D] outline-none transition`}
+                className="w-full pl-4 pr-12 py-4 rounded-xl border border-slate-200 focus:ring-2 focus:ring-[#0A1E3D] outline-none transition"
                 onChange={(e) => setPassword(e.target.value)}
+                disabled={isLoading}
+                required 
               />
               <button 
                 type="button"
@@ -91,18 +107,18 @@ export default function LoginPage() {
               </button>
             </div>
 
-            <button type="submit" className="w-full bg-[#0A1E3D] text-white py-4 rounded-xl font-bold hover:bg-[#122d5a] transition shadow-lg shadow-[#0A1E3D]/20">
-              Iniciar sesión
+            <button 
+              type="submit" 
+              disabled={isLoading}
+              className="w-full bg-[#0A1E3D] text-white py-4 rounded-xl font-bold hover:bg-[#122d5a] transition disabled:opacity-70"
+            >
+              {isLoading ? "Validando..." : "Iniciar sesión"}
             </button>
           </form>
 
-          {/* CAMBIO: Redirección a la selección de registro */}
           <p className="text-center mt-6 text-sm text-slate-600">
             ¿No tienes cuenta?{' '}
-            <button 
-              onClick={() => navigate('/seleccion-registro')} 
-              className="text-[#0A1E3D] font-bold hover:underline"
-            >
+            <button onClick={() => navigate('/seleccion-registro')} className="text-[#0A1E3D] font-bold hover:underline">
               Regístrate
             </button>
           </p>

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import { Activity, Eye, EyeOff, ArrowLeft, Check, X, AlertCircle } from 'lucide-react';
+import { Activity, Eye, EyeOff, Check, X, AlertCircle } from 'lucide-react';
 
 export default function RegisterPaciente() {
   const [nombre, setNombre] = useState('');

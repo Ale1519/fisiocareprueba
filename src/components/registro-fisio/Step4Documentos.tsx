@@ -16,19 +16,30 @@ export default function Step4Documentos({ formData, onBack }: any) {
     if (!file) return;
 
     setLoading(true);
-    const fileName = `${Date.now()}_${file.name}`;
+
+    const cleanName = file.name
+      .replace(/\s+/g, '_')
+      .replace(/[^a-zA-Z0-9._-]/g, '')
+      .substring(0, 50);
+
+    const fileName = `${Date.now()}_${cleanName}`;
     
     const { error } = await supabase.storage
       .from('documentos-fisio')
       .upload(fileName, file);
 
-    if (error) { alert('Error al subir archivo'); setLoading(false); return; }
+    if (error) { 
+      console.error("Error al subir:", error);
+      alert('Error al subir archivo: ' + error.message); 
+      setLoading(false); 
+      return; 
+    }
 
-    const { data: publicUrl } = supabase.storage
+    const { data: publicUrlData } = supabase.storage
       .from('documentos-fisio')
       .getPublicUrl(fileName);
 
-    setDocs(prev => ({ ...prev, [field]: publicUrl.publicUrl }));
+    setDocs(prev => ({ ...prev, [field]: publicUrlData.publicUrl }));
     setLoading(false);
   };
 
@@ -37,41 +48,44 @@ export default function Step4Documentos({ formData, onBack }: any) {
     try {
       // 1. Crear usuario en Auth
       const { data: auth, error: authError } = await supabase.auth.signUp({ 
-        email: formData.email, password: formData.password 
+        email: formData.email, 
+        password: formData.password,
+        options: { data: { rol: 'fisioterapeuta' } }
       });
       if (authError) throw authError;
       const userId = auth.user!.id;
 
-      // 2. Insertar en tabla usuarios
-      await supabase.from('usuarios').insert([{ id: userId, email: formData.email, rol: 'fisioterapeuta' }]);
-
-      // 3. Insertar en tabla fisioterapeutas
-      await supabase.from('fisioterapeutas').insert([{
+      // 2. Insertar en tabla fisioterapeutas
+      // Nota: No insertamos en 'usuarios' manualmente; el trigger de la BD lo hace solo.
+      const { error: fisioError } = await supabase.from('fisioterapeutas').insert([{
         id: userId,
         nombres: formData.nombres,
         apellidos: formData.apellidos,
         celular: formData.celular,
         colegiatura: formData.colegiatura,
-        anos_experiencia: parseInt(formData.anos_experiencia),
-        precio_sesion: parseFloat(formData.precio_sesion),
+        anos_experiencia: parseInt(formData.anos_experiencia) || 0,
+        precio_sesion: parseFloat(formData.precio_sesion) || 0,
         ofrece_domicilio: formData.ofrece_domicilio,
         ofrece_videollamada: formData.ofrece_videollamada,
         bio: formData.bio,
         ...docs
       }]);
+      if (fisioError) throw fisioError;
 
-      // 4. Guardar especialidades en tabla intermedia
+      // 3. Guardar especialidades (formData.especialidades ahora contiene UUIDs)
       if (formData.especialidades && formData.especialidades.length > 0) {
-        const espToInsert = formData.especialidades.map((espId: string) => ({
+        const espToInsert = formData.especialidades.map((uuid: string) => ({
           fisioterapeuta_id: userId,
-          especialidad_id: espId
+          especialidad_id: uuid
         }));
-        await supabase.from('fisioterapeuta_especialidades').insert(espToInsert);
+        const { error: espError } = await supabase.from('fisioterapeuta_especialidades').insert(espToInsert);
+        if (espError) throw espError;
       }
 
       alert("¡Registro enviado a verificación!");
     } catch (e: any) { 
-      alert("Error: " + e.message); 
+      console.error("Error final:", e);
+      alert("Error: " + (e.message || "Error inesperado al registrar")); 
     }
     setLoading(false);
   };
