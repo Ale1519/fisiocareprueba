@@ -16,25 +16,23 @@ import {
 export default function Landing() {
   const navigate = useNavigate();
   return (
-    <div className="min-h-screen bg-white text-slate-800 antialiased font-body">
-
-      {/* ── EL NAVBAR VIEJO FUE ELIMINADO DE AQUÍ PORQUE AHORA ES GLOBAL ── */}
+    <div className="min-h-screen bg-white text-slate-800 antialiased font-body flex flex-col overflow-x-hidden">
 
       {/* ── HERO ── */}
       <header id="inicio" className="bg-[#F2F6FA] border-b border-slate-100/80">
-        <div className="max-w-7xl mx-auto px-5 sm:px-8 pt-16 pb-20 lg:pt-24 lg:pb-28 grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
+        <div className="max-w-7xl mx-auto px-5 sm:px-8 pt-12 pb-16 lg:pt-24 lg:pb-28 grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-12 items-center">
 
           {/* Left */}
-          <div className="lg:col-span-6 space-y-7">
+          <div className="lg:col-span-6 space-y-6 lg:space-y-7">
 
             <div className="inline-flex items-center gap-2 tag-badge bg-white px-3.5 py-1.5 rounded-full text-xs font-semibold shadow-sm/50">
-              <CheckCircle className="h-3.5 w-3.5" />
+              <CheckCircle className="h-3.5 w-3.5 text-green-600" />
               Fisioterapeutas verificados en Lima
             </div>
 
-            <h1 className="font-display text-5xl lg:text-[3.6rem] font-semibold text-[#0A1E3D] leading-[1.08] tracking-tight">
-              Encuentra tu<br />
-              <em className="not-italic text-[#0A1E3D]">fisioterapeuta<br />verificado</em>,{' '}
+            <h1 className="font-display text-4xl sm:text-5xl lg:text-[3.6rem] font-semibold text-[#0A1E3D] leading-[1.1] tracking-tight">
+              Encuentra tu<br className="hidden sm:block" />
+              <em className="not-italic text-[#0A1E3D] block sm:inline mt-2 sm:mt-0">fisioterapeuta<br className="hidden sm:block" />verificado</em>,{' '}
               donde estés
             </h1>
 
@@ -42,24 +40,24 @@ export default function Landing() {
               Reserva sesiones a domicilio o por videollamada con profesionales colegiados. Recupérate con confianza, en tus tiempos.
             </p>
 
-          {/* BOTONES HERO ACTUALIZADOS */}
-            <div className="flex items-center gap-3 pt-1">
+            {/* BOTONES HERO ACTUALIZADOS PARA MÓVIL */}
+            <div className="flex flex-col sm:flex-row items-center gap-3 pt-2">
               <button 
                 onClick={() => navigate('/login')} 
-                className="btn-primary flex items-center gap-2 px-7 py-3.5"
+                className="btn-primary w-full sm:w-auto flex items-center justify-center gap-2 px-7 py-3.5 rounded-xl bg-[#0A1E3D] text-white font-medium transition hover:bg-[#1E3A6E]"
               >
                 Soy paciente <ArrowRight className="h-4 w-4" />
               </button>
               <button 
                 onClick={() => navigate('/login')} 
-                className="btn-outline flex items-center gap-2 px-7 py-3.5"
+                className="btn-outline w-full sm:w-auto flex items-center justify-center gap-2 px-7 py-3.5 rounded-xl border border-slate-300 text-slate-700 font-medium transition hover:bg-slate-50"
               >
                 Soy fisioterapeuta
               </button>
             </div>
 
             {/* Social Proof */}
-            <div className="flex items-center gap-4 pt-2">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 pt-4">
               <div className="flex -space-x-2.5">
                 {['#1E40AF', '#1D4ED8', '#2563EB', '#3B82F6'].map((c, i) => (
                   <div key={i} className="h-9 w-9 rounded-full border-2 border-white" style={{ background: c }} />
@@ -78,24 +76,24 @@ export default function Landing() {
           </div>
 
           {/* Right — image */}
-          <div className="lg:col-span-6 relative">
-            <div className="relative rounded-[2rem] overflow-hidden shadow-2xl aspect-[4/3]">
+          <div className="lg:col-span-6 relative mt-8 lg:mt-0">
+            <div className="relative rounded-[2rem] overflow-hidden shadow-2xl aspect-[4/3] w-full">
               <img
                 src="https://images.unsplash.com/photo-1576091160550-2173dba999ef?auto=format&fit=crop&w=900&q=80"
                 alt="Sesión de fisioterapia"
                 className="hero-img w-full h-full object-cover"
               />
-              <div className="absolute inset-0 bg-gradient-to-t from-[#0A1E3D]/20 to-transparent" />
+              <div className="absolute inset-0 bg-gradient-to-t from-[#0A1E3D]/30 to-transparent" />
             </div>
 
-            {/* Floating card */}
-            <div className="absolute bottom-6 left-0 md:-left-8 bg-white rounded-2xl shadow-xl border border-slate-100 px-5 py-4 flex items-center gap-3.5 max-w-[230px]">
-              <div className="bg-[#EBF5FF] p-2.5 rounded-xl">
+            {/* Floating card adaptada para móvil */}
+            <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 md:bottom-6 md:left-[-2rem] md:translate-x-0 bg-white rounded-2xl shadow-xl border border-slate-100 px-4 py-3 sm:px-5 sm:py-4 flex items-center gap-3 w-[90%] max-w-[260px] sm:max-w-[230px]">
+              <div className="bg-[#EBF5FF] p-2 sm:p-2.5 rounded-xl shrink-0">
                 <Calendar className="h-5 w-5 text-[#2563EB]" />
               </div>
-              <div>
+              <div className="truncate">
                 <p className="text-[10px] font-bold tracking-widest text-slate-400 uppercase">Próxima sesión</p>
-                <p className="text-sm font-bold text-[#0A1E3D] mt-0.5">Mañana 11:00 — Domicilio</p>
+                <p className="text-xs sm:text-sm font-bold text-[#0A1E3D] mt-0.5 truncate">Mañana 11:00 — Domicilio</p>
               </div>
             </div>
           </div>
@@ -104,15 +102,15 @@ export default function Landing() {
       </header>
 
       {/* ── POR QUÉ FISIOCARE ── */}
-      <section className="bg-white py-24">
+      <section className="bg-white py-16 lg:py-24 mt-8 md:mt-0">
         <div className="max-w-7xl mx-auto px-5 sm:px-8">
 
-          <div className="text-center mb-16">
-            <h2 className="font-display text-4xl font-semibold text-[#0A1E3D] mb-3">¿Por qué FisioCare?</h2>
+          <div className="text-center mb-12 lg:mb-16">
+            <h2 className="font-display text-3xl sm:text-4xl font-semibold text-[#0A1E3D] mb-3">¿Por qué FisioCare?</h2>
             <p className="text-slate-400 text-sm font-light">Diseñado para que tu recuperación sea simple y segura.</p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-8">
             {[
               {
                 icon: <Shield className="h-6 w-6" />,
@@ -133,7 +131,7 @@ export default function Landing() {
                 color: 'bg-[#FEF3F2] text-[#E03B2A]',
               },
             ].map(({ icon, title, desc, color }) => (
-              <div key={title} className="card-lift bg-white p-8 space-y-5">
+              <div key={title} className="card-lift bg-white p-6 sm:p-8 rounded-[1.5rem] border border-slate-100 shadow-sm hover:shadow-md transition duration-300 space-y-4 sm:space-y-5">
                 <div className={`h-12 w-12 rounded-2xl flex items-center justify-center ${color}`}>
                   {icon}
                 </div>
@@ -148,25 +146,25 @@ export default function Landing() {
       </section>
 
       {/* ── CÓMO FUNCIONA ── */}
-      <section className="py-24 bg-[#F2F6FA] border-t border-b border-slate-100/80">
+      <section className="py-16 lg:py-24 bg-[#F2F6FA] border-t border-b border-slate-100/80">
         <div className="max-w-7xl mx-auto px-5 sm:px-8">
 
-          <div className="text-center mb-20">
-            <h2 className="font-display text-4xl font-semibold text-[#0A1E3D] mb-3">Cómo funciona</h2>
+          <div className="text-center mb-16 lg:mb-20">
+            <h2 className="font-display text-3xl sm:text-4xl font-semibold text-[#0A1E3D] mb-3">Cómo funciona</h2>
             <p className="text-slate-400 text-sm font-light">En 3 simples pasos estás en sesión.</p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-10 lg:gap-8">
             {[
               { num: '1', icon: <Search className="h-6 w-6" />, title: 'Busca', desc: 'Filtra por modalidad, distrito, precio y especialidad.' },
               { num: '2', icon: <UserCheck className="h-6 w-6" />, title: 'Elige y agenda', desc: 'Revisa perfiles, reseñas y reserva el horario que prefieras.' },
               { num: '3', icon: <Calendar className="h-6 w-6" />, title: 'Recibe tu sesión', desc: 'Paga seguro con Yape o tarjeta y empieza tu recuperación.' },
             ].map(({ num, icon, title, desc }) => (
-              <div key={num} className="step-card px-6 pt-10 pb-8 flex flex-col items-center justify-center min-h-[190px]">
-                <div className="absolute -top-4 left-1/2 -translate-x-1/2 h-8 w-8 bg-[#1E3A6E] text-white rounded-full flex items-center justify-center font-bold text-sm shadow-sm">
+              <div key={num} className="step-card bg-white rounded-[1.5rem] px-6 pt-10 pb-8 flex flex-col items-center justify-center min-h-[190px] relative shadow-sm">
+                <div className="absolute -top-5 left-1/2 -translate-x-1/2 h-10 w-10 bg-[#1E3A6E] text-white rounded-full flex items-center justify-center font-bold text-sm shadow-md border-4 border-[#F2F6FA]">
                   {num}
                 </div>
-                <div className="h-14 w-14 bg-[#E8F5EE] text-[#1A6645] rounded-2xl flex items-center justify-center mb-4.5">
+                <div className="h-14 w-14 bg-[#E8F5EE] text-[#1A6645] rounded-2xl flex items-center justify-center mb-5">
                   {icon}
                 </div>
                 <div className="text-center space-y-1.5 max-w-[240px]">
@@ -180,30 +178,30 @@ export default function Landing() {
       </section>
 
       {/* ── CTA DUAL ── */}
-      <section className="bg-white py-24">
+      <section className="bg-white py-16 lg:py-24">
         <div className="max-w-7xl mx-auto px-5 sm:px-8">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
             {/* Tarjeta Pacientes */}
-            <div className="bg-[#0F2850] text-white p-10 rounded-[1.75rem] flex flex-col justify-between min-h-[200px] relative overflow-hidden shadow-md">
+            <div className="bg-[#0F2850] text-white p-8 sm:p-10 rounded-[1.75rem] flex flex-col justify-between min-h-[200px] relative overflow-hidden shadow-md">
               <div className="absolute top-0 right-0 h-48 w-48 bg-white/5 rounded-full translate-x-16 -translate-y-16" />
-              <div>
+              <div className="relative z-10">
                 <h3 className="font-display text-2xl font-semibold mb-2">¿Necesitas atención?</h3>
                 <p className="text-blue-200 text-sm font-light">Encuentra al fisio ideal para ti en minutos.</p>
               </div>
-              <Link to="/especialistas" className="cta-btn bg-white text-[#0F2850] font-semibold px-6 py-3 rounded-xl text-sm self-start mt-6 shadow-sm inline-block text-center">
+              <Link to="/especialistas" className="relative z-10 bg-white text-[#0F2850] font-semibold px-6 py-3 rounded-xl text-sm mt-8 shadow-sm inline-block text-center hover:bg-slate-50 transition w-full sm:w-max">
                 Buscar fisioterapeutas
               </Link>
             </div>
 
             {/* Tarjeta Fisioterapeutas */}
-            <div className="bg-[#1A5C3A] text-white p-10 rounded-[1.75rem] flex flex-col justify-between min-h-[200px] relative overflow-hidden shadow-md">
+            <div className="bg-[#1A5C3A] text-white p-8 sm:p-10 rounded-[1.75rem] flex flex-col justify-between min-h-[200px] relative overflow-hidden shadow-md">
               <div className="absolute top-0 right-0 h-48 w-48 bg-white/5 rounded-full translate-x-16 -translate-y-16" />
-              <div>
+              <div className="relative z-10">
                 <h3 className="font-display text-2xl font-semibold mb-2">¿Eres fisioterapeuta?</h3>
                 <p className="text-emerald-200 text-sm font-light">Crece tu consulta con pacientes que te buscan.</p>
               </div>
-              <button className="cta-btn bg-white text-[#1A5C3A] font-semibold px-6 py-3 rounded-xl text-sm self-start mt-6 shadow-sm">
+              <button className="relative z-10 bg-white text-[#1A5C3A] font-semibold px-6 py-3 rounded-xl text-sm mt-8 shadow-sm hover:bg-slate-50 transition w-full sm:w-max">
                 Quiero registrarme
               </button>
             </div>
@@ -213,8 +211,8 @@ export default function Landing() {
       </section>
 
       {/* ── FOOTER ── */}
-      <footer className="bg-[#0A1E3D] text-slate-400 pt-16 pb-8">
-        <div className="max-w-7xl mx-auto px-5 sm:px-8 grid grid-cols-1 md:grid-cols-4 gap-10 mb-12">
+      <footer className="bg-[#0A1E3D] text-slate-400 pt-16 pb-8 mt-auto">
+        <div className="max-w-7xl mx-auto px-5 sm:px-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10 mb-12">
 
           <div className="space-y-4">
             <div className="flex items-center gap-2">
@@ -223,7 +221,7 @@ export default function Landing() {
               </div>
               <span className="font-display text-white font-semibold text-lg">FisioCare</span>
             </div>
-            <p className="text-xs leading-relaxed text-slate-500">Conectamos pacientes con fisioterapeutas verificados en Lima.</p>
+            <p className="text-xs leading-relaxed text-slate-500 max-w-xs">Conectamos pacientes con fisioterapeutas verificados en Lima.</p>
           </div>
 
           {[
@@ -249,14 +247,14 @@ export default function Landing() {
           <div className="space-y-3">
             <h4 className="text-white text-sm font-semibold">Contacto</h4>
             <ul className="text-xs space-y-2.5">
-              <li className="flex items-center gap-2"><Mail className="h-3.5 w-3.5 text-blue-400" /> hola@fisiocare.pe</li>
-              <li className="flex items-center gap-2"><Phone className="h-3.5 w-3.5 text-blue-400" /> +51 999 888 777</li>
-              <li className="flex items-center gap-2"><MapPin className="h-3.5 w-3.5 text-blue-400" /> Lima, Perú</li>
+              <li className="flex items-center gap-2"><Mail className="h-3.5 w-3.5 text-blue-400 shrink-0" /> hola@fisiocare.pe</li>
+              <li className="flex items-center gap-2"><Phone className="h-3.5 w-3.5 text-blue-400 shrink-0" /> +51 999 888 777</li>
+              <li className="flex items-center gap-2"><MapPin className="h-3.5 w-3.5 text-blue-400 shrink-0" /> Lima, Perú</li>
             </ul>
           </div>
         </div>
 
-        <div className="max-w-7xl mx-auto px-5 sm:px-8 border-t border-slate-800 pt-6 flex flex-col sm:flex-row items-center justify-between text-[11px] text-slate-600 gap-2">
+        <div className="max-w-7xl mx-auto px-5 sm:px-8 border-t border-slate-800 pt-6 flex flex-col sm:flex-row items-center justify-between text-[11px] text-slate-600 gap-3 text-center sm:text-left">
           <p>© 2026 FisioCare. Todos los derechos reservados.</p>
           <p>Hecho con ♥ en Lima</p>
         </div>
