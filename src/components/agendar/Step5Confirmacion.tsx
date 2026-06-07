@@ -16,7 +16,7 @@ export default function Step5Confirmacion({ fisio, data }: any) {
         if (!user) throw new Error("No se encontró sesión de usuario");
 
         // 2. VERIFICACIÓN: Comprobar si ya existe en la tabla 'pacientes'
-        const { data: pacienteExistente, error: errorBusqueda } = await supabase
+        const { data: pacienteExistente} = await supabase
           .from('pacientes')
           .select('id')
           .eq('id', user.id)
