@@ -7,7 +7,7 @@ export default function Step3Atencion({ onNext, onBack }: any) {
   const [data, setData] = useState({
     ofrece_domicilio: false,
     ofrece_videollamada: false,
-    distritos_seleccionados: [] as string[],
+    distritos_seleccionados: [] as any[],
     precio_sesion: ''
   });
 
@@ -19,12 +19,12 @@ export default function Step3Atencion({ onNext, onBack }: any) {
     fetchDistritos();
   }, []);
 
-  const toggleDistrito = (nombre: string) => {
+  const toggleDistrito = (id: any) => {
     setData(prev => ({
       ...prev,
-      distritos_seleccionados: prev.distritos_seleccionados.includes(nombre)
-        ? prev.distritos_seleccionados.filter(d => d !== nombre)
-        : [...prev.distritos_seleccionados, nombre]
+      distritos_seleccionados: prev.distritos_seleccionados.includes(id)
+        ? prev.distritos_seleccionados.filter(d => d !== id)
+        : [...prev.distritos_seleccionados, id]
     }));
   };
 
@@ -69,8 +69,8 @@ export default function Step3Atencion({ onNext, onBack }: any) {
           {distritos.map(d => (
             <button
               key={d.id}
-              onClick={() => toggleDistrito(d.nombre)}
-              className={`p-2.5 sm:p-3 text-[11px] sm:text-sm border rounded-xl transition-all text-center leading-tight ${data.distritos_seleccionados.includes(d.nombre) ? 'border-[#1A5C3A] bg-[#f0f9f4] text-[#1A5C3A] font-semibold shadow-sm' : 'border-slate-200 text-slate-600 hover:border-[#1A5C3A]'}`}
+              onClick={() => toggleDistrito(d.id)}
+              className={`p-2.5 sm:p-3 text-[11px] sm:text-sm border rounded-xl transition-all text-center leading-tight ${data.distritos_seleccionados.includes(d.id) ? 'border-[#1A5C3A] bg-[#f0f9f4] text-[#1A5C3A] font-semibold shadow-sm' : 'border-slate-200 text-slate-600 hover:border-[#1A5C3A]'}`}
             >
               {d.nombre}
             </button>
