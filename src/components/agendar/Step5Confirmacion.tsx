@@ -9,14 +9,36 @@ export default function Step5Confirmacion({ fisio, data }: any) {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const crearCitaEnBaseDeDatos = async () => {
+   const crearCitaEnBaseDeDatos = async () => {
       try {
-        // 1. Obtener el usuario actual
+        // 1. Obtener el usuario actual de Auth
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) throw new Error("No se encontró sesión de usuario");
 
-        // 2. Insertar la cita
-        const { error: insertError } = await supabase
+        // 2. VERIFICACIÓN: Comprobar si ya existe en la tabla 'pacientes'
+        const { data: pacienteExistente, error: errorBusqueda } = await supabase
+          .from('pacientes')
+          .select('id')
+          .eq('id', user.id)
+          .maybeSingle(); // maybeSingle devuelve null si no hay filas (en lugar de dar error)
+
+        // 3. CREACIÓN AUTOMÁTICA: Si no existe, lo insertamos para cumplir la llave foránea
+        if (!pacienteExistente) {
+          const { error: insertPacienteError } = await supabase
+            .from('pacientes')
+            .insert([{
+              id: user.id,
+              // Usamos datos genéricos o del email por ahora para que no falle si tienes campos NOT NULL
+              nombres: user.email?.split('@')[0] || 'Paciente',
+              apellidos: 'Nuevo',
+              telefono: '000000000' 
+            }]);
+            
+          if (insertPacienteError) throw new Error("No se pudo crear el perfil base del paciente: " + insertPacienteError.message);
+        }
+
+        // 4. Insertar la cita (ahora 100% seguros de que la llave foránea hará match)
+        const { error: insertCitaError } = await supabase
           .from('citas')
           .insert([{
             paciente_id: user.id,
@@ -27,13 +49,13 @@ export default function Step5Confirmacion({ fisio, data }: any) {
             distrito_id: data.distrito_id || null,
             direccion_exacta: data.direccion_exacta || null,
             precio: fisio.precio_sesion,
-            estado: 'programada' 
+            estado: 'programada'
           }]);
 
-        if (insertError) throw insertError;
+        if (insertCitaError) throw insertCitaError;
 
       } catch (err: any) {
-        console.error("Error al crear la cita:", err);
+        console.error("Error en el flujo de guardado:", err);
         setError(err.message);
       } finally {
         setLoading(false);
