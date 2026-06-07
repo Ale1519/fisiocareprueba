@@ -1,121 +1,169 @@
-import { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { supabase } from '../lib/supabase';
-import { LayoutDashboard, LogOut } from 'lucide-react';
+import { useState } from 'react';
+import { Link, useLocation } from 'react-router-dom';
+import { Activity, Menu, X } from 'lucide-react';
 
-export default function Header() {
-  const navigate = useNavigate();
-  const [user, setUser] = useState<any>(null);
-  const [rol, setRol] = useState<'paciente' | 'fisio' | null>(null);
 
-  useEffect(() => {
-    // Revisar si hay sesión activa
-    const checkUser = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      setUser(session?.user || null);
-      if (session?.user) determinarRol(session.user.id);
-    };
+export default function Navbar() {
+  const location = useLocation();
+  const [isOpen, setIsOpen] = useState(false);
+  
+  const isSelected = (path: string) => location.pathname === path;
 
-    checkUser();
+  // Lista de enlaces para no repetir código
+  const navLinks = [
+    { name: 'Inicio', path: '/' },
+    { name: 'Especialistas', path: '/especialistas' },
+    { name: '¿Cómo funciona?', path: '/como-funciona' }
+  ];
 
-    // Escuchar cambios de estado (login/logout)
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user || null);
-      if (session?.user) {
-        determinarRol(session.user.id);
-      } else {
-        setRol(null);
-      }
-    });
 
-    return () => subscription.unsubscribe();
-  }, []);
-
-  const determinarRol = async (userId: string) => {
-    const { data: fisio } = await supabase
-      .from('fisioterapeutas')
-      .select('id')
-      .eq('id', userId)
-      .maybeSingle();
-
-    if (fisio) {
-      setRol('fisio');
-    } else {
-      setRol('paciente');
-    }
-  };
-
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    navigate('/');
-  };
+  // Función para cerrar el menú móvil al hacer clic en un enlace
+  const closeMenu = () => setIsOpen(false);
 
   return (
-    <header className="bg-white shadow-sm border-b border-slate-200 sticky top-0 z-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-16">
-          
-          {/* LOGO (Siempre visible) */}
-          <Link to="/" className="flex items-center gap-2">
-            <div className="bg-[#1A5C3A] text-white p-1.5 rounded-lg">
-              <span className="font-bold text-xl leading-none">F</span>
-            </div>
-            <span className="font-extrabold text-xl text-[#0A1E3D] tracking-tight">FisioCare</span>
+    <nav className="bg-white border-b border-slate-200 sticky top-0 z-50 font-sans">
+      <div className="max-w-7xl mx-auto px-5 sm:px-6 h-20 flex items-center justify-between">
+        
+        {/* Logo */}
+        <Link to="/" className="flex items-center gap-3 group" onClick={closeMenu}>
+          <div className="bg-[#0A1E3D] p-2 rounded-xl transition-transform group-hover:scale-105">
+            <Activity className="h-5 w-5 text-white" />
+          </div>
+          <span className="text-xl font-bold text-[#0A1E3D] tracking-tight">FisioCare</span>
+        </Link>
+
+        {/* Navegación Desktop (Oculta en celular/tablet) */}
+        <div className="hidden lg:flex items-center gap-2">
+          {navLinks.map((item) => (
+            <Link 
+              key={item.name} 
+              to={item.path} 
+              className={`px-5 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200 ${
+                isSelected(item.path) 
+                  ? 'bg-sky-50 text-sky-700' 
+                  : 'text-slate-600 hover:text-[#0A1E3D] hover:bg-slate-50'
+              }`}
+            >
+              {item.name}
+            </Link>
+          ))}
+        
+        </div>
+
+        {/* Acciones Desktop */}
+        <div className="hidden lg:flex items-center gap-4">
+          <Link 
+            to="/login"
+            className="px-5 py-2.5 rounded-lg text-sm font-bold text-slate-600 border border-slate-200 hover:border-slate-300 hover:shadow-sm transition-all duration-200"
+          >
+            Iniciar sesión
           </Link>
+          <Link 
+            to="/seleccion-registro"
+            className="bg-[#0A1E3D] text-white px-5 py-2.5 rounded-lg text-sm font-bold hover:bg-[#122d5a] transition"
+          >
+            Registrarse
+          </Link>
+        </div>
 
-          {/* LÓGICA CONDICIONAL DE NAVEGACIÓN */}
-          {user ? (
-            
-            // 🟢 VISTA PARA USUARIO LOGUEADO (Solo muestra su panel y botón de salir)
-            <div className="flex items-center gap-4">
-              <Link 
-                to={rol === 'fisio' ? '/dashboard-fisio' : '/dashboard-paciente'}
-                className="flex items-center gap-2 text-sm font-bold text-slate-600 hover:text-[#1A5C3A] bg-slate-50 hover:bg-slate-100 px-4 py-2.5 rounded-xl transition"
-              >
-                <LayoutDashboard className="h-4 w-4" /> 
-                Mi Panel
-              </Link>
-              <button 
-                onClick={handleLogout}
-                className="flex items-center justify-center p-2.5 text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-100 rounded-xl transition"
-                title="Cerrar sesión"
-              >
-                <LogOut className="h-4 w-4" />
-              </button>
-            </div>
-
-          ) : (
-
-            // ⚪ VISTA PARA VISITANTE (Tu Landing Page Original)
-            <>
-              {/* ENLACES CENTRALES (Puedes pegar aquí los tuyos si tenías) */}
-              <nav className="hidden md:flex items-center gap-8">
-                <Link to="/especialistas" className="text-sm font-bold text-slate-600 hover:text-[#1A5C3A] transition">Especialistas</Link>
-                <a href="#servicios" className="text-sm font-bold text-slate-600 hover:text-[#1A5C3A] transition">Servicios</a>
-                <a href="#como-funciona" className="text-sm font-bold text-slate-600 hover:text-[#1A5C3A] transition">Cómo funciona</a>
-              </nav>
-
-              {/* BOTONES DE AUTH ORIGINALES */}
-              <div className="flex items-center gap-3">
-                <Link 
-                  to="/login" 
-                  className="text-sm font-bold text-slate-600 hover:text-[#0A1E3D] transition px-3"
-                >
-                  Iniciar Sesión
-                </Link>
-                <Link 
-                  to="/registro" 
-                  className="bg-[#1A5C3A] hover:bg-[#124229] text-white px-5 py-2.5 rounded-xl text-sm font-bold transition shadow-sm"
-                >
-                  Regístrate
-                </Link>
-              </div>
-            </>
-
-          )}
-
+        {/* Botón Menú Hamburguesa (Solo Móvil) */}
+        <div className="lg:hidden flex items-center">
+          <button 
+            onClick={() => setIsOpen(!isOpen)}
+            className="text-slate-600 hover:text-[#0A1E3D] focus:outline-none p-2 rounded-lg bg-slate-50 hover:bg-slate-100 transition"
+          >
+            {isOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+          </button>
         </div>
       </div>
-    </header>
+
+      {/* Menú Desplegable (Solo Móvil) */}
+      {isOpen && (
+        <div className="lg:hidden absolute top-20 left-0 w-full bg-white border-b border-slate-200 shadow-xl py-5 px-6 flex flex-col gap-5 slide-down">
+          
+          {/* Enlaces Móvil */}
+          <div className="flex flex-col gap-2">
+            {navLinks.map((item) => (
+              <Link 
+                key={item.name} 
+                to={item.path}
+                onClick={closeMenu}
+                className={`px-4 py-3.5 rounded-xl text-base font-semibold transition ${
+                  isSelected(item.path) 
+                    ? 'bg-sky-50 text-sky-700' 
+                    : 'text-slate-600 hover:bg-slate-50 hover:text-[#0A1E3D]'
+                }`}
+              >
+                {item.name}
+              </Link>
+            ))}
+          </div>
+          
+          <div className="h-px bg-slate-100"></div>
+
+          {/* Botones Móvil */}
+          <div className="flex flex-col gap-3">
+    
+            <div className="grid grid-cols-2 gap-3 mt-2">
+              <Link 
+                to="/login"
+                onClick={closeMenu}
+                className="flex justify-center items-center px-4 py-3.5 rounded-xl text-sm font-bold text-slate-600 border border-slate-200 hover:bg-slate-50 transition"
+              >
+                Iniciar sesión
+              </Link>
+              <Link 
+                to="/seleccion-registro"
+                onClick={closeMenu}
+                className="flex justify-center items-center bg-[#0A1E3D] text-white px-4 py-3.5 rounded-xl text-sm font-bold hover:bg-[#122d5a] transition"
+              >
+                Registrarse
+              </Link>
+            </div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+          </div>
+
+        </div>
+      )}
+    </nav>
   );
 }
