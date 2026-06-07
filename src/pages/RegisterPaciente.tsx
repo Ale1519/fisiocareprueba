@@ -37,17 +37,31 @@ export default function RegisterPaciente() {
     if (!isAllValid) return;
 
     try {
-      // 1. Registro en Auth
+      // 1. Registro en Auth enviando los datos extras en la metadata
       const { data, error: signUpError } = await supabase.auth.signUp({ 
         email, 
         password,
-        options: { data: { rol: 'paciente' } }
+        options: { 
+          data: { 
+            rol: 'paciente',
+            nombre_completo: nombre,
+            telefono: telefono
+          } 
+        }
       });
 
       if (signUpError) throw signUpError;
 
       if (data.user) {
-        // 2. Inserción/Actualización en pacientes
+        // 2. Validación de confirmación de correo
+        // Si no hay sesión, significa que el usuario debe ir a su correo
+        if (!data.session) {
+          alert("¡Cuenta creada! Por favor, revisa tu bandeja de entrada o SPAM para confirmar tu correo antes de iniciar sesión.");
+          navigate('/login');
+          return; // Detenemos la ejecución aquí
+        }
+
+        // 3. Inserción/Actualización en pacientes (Si la sesión ya está activa)
         const { error: profileError } = await supabase.from('pacientes').upsert([{ 
           id: data.user.id, 
           nombre_completo: nombre, 
