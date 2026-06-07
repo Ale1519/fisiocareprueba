@@ -12,6 +12,7 @@ import RegisterFisio from './pages/RegisterFisio';
 import DashboardPaciente from './pages/DashboardPaciente';
 import DashboardFisio from './pages/DashboardFisio'; 
 import EspecialistaDetalle from './pages/EspecialistaDetalle'; 
+import AgendarCita from './pages/AgendarCita'; 
 import './index.css'
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
@@ -30,6 +31,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
         <Route path="/dashboard-paciente" element={<DashboardPaciente />} />
         <Route path="/dashboard-fisio" element={<DashboardFisio />} /> {/* 2. Registramos la ruta */}
         <Route path="/especialistas/:id" element={<EspecialistaDetalle />} />
+        <Route path="/agendar/:id" element={<AgendarCita />} />
       </Routes>
     </Router>
   </React.StrictMode>,
