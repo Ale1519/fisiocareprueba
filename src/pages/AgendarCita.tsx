@@ -6,6 +6,7 @@ import { ArrowLeft, User } from 'lucide-react';
 import Step1Modalidad from '../components/agendar/Step1Modalidad';
 import Step2Fecha from '../components/agendar/Step2Fecha';
 import Step3Resumen from '../components/agendar/Step3Resumen';
+import Step4Pago from '../components/agendar/Step4Pago';
 
 export default function AgendarCita() {
   const { id } = useParams<{ id: string }>();
@@ -110,10 +111,12 @@ export default function AgendarCita() {
           )}
 
           {/* Renderizado Dinámico de Pasos */}
+         {/* Renderizado Dinámico de Pasos */}
           {pasoActual === 1 && <Step1Modalidad fisio={fisio} data={reserva} onNext={handleNext} />}
           {pasoActual === 2 && <Step2Fecha fisioId={id!} data={reserva} onNext={handleNext} onBack={handleBack} />}
           {pasoActual === 3 && <Step3Resumen fisio={fisio} data={reserva} onNext={handleNext} onBack={handleBack} />}
-          {pasoActual === 4 && <div>Paso 4 (Pago) en construcción...</div>}
+          {pasoActual === 4 && <Step4Pago fisio={fisio} data={reserva} onNext={handleNext} onBack={handleBack} />}
+          {pasoActual === 5 && <div>Paso 5 (Confirmación en BD) en construcción...</div>}
 
         </div>
       </div>
