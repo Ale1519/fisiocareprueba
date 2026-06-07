@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Activity, Menu, X, LayoutDashboard, LogOut } from 'lucide-react';
-import { supabase } from '../lib/supabase'; // Ajusta la ruta si es necesario
+import { supabase } from '../lib/supabase';
 
 export default function Navbar() {
   const location = useLocation();
@@ -14,12 +14,16 @@ export default function Navbar() {
   
   const isSelected = (path: string) => location.pathname === path;
 
-  // Lista de enlaces para no repetir código
+  // 🧠 LÓGICA DINÁMICA: Si es fisio, ocultamos 'Especialistas'
   const navLinks = [
     { name: 'Inicio', path: '/' },
     { name: 'Especialistas', path: '/especialistas' },
     { name: '¿Cómo funciona?', path: '/como-funciona' }
-  ];
+  ].filter(link => {
+    // Si el rol es fisio y el enlace es Especialistas, lo ocultamos
+    if (rol === 'fisio' && link.name === 'Especialistas') return false;
+    return true;
+  });
 
   // Función para cerrar el menú móvil al hacer clic en un enlace
   const closeMenu = () => setIsOpen(false);
