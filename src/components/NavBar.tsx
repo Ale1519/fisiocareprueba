@@ -12,7 +12,7 @@ export default function Navbar() {
   const navLinks = [
     { name: 'Inicio', path: '/' },
     { name: 'Especialistas', path: '/especialistas' },
-    { name: '¿Cómo funciona?', path: '/como-funciona' }
+    { name: '¿Cómo funcionaaaaaaaaaaa?', path: '/como-funciona' }
   ];
 
   // Función para cerrar el menú móvil al hacer clic en un enlace
