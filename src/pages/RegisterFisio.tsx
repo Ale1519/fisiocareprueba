@@ -20,19 +20,20 @@ export default function RegistroFisio() {
   const steps = ['Datos', 'Profesional', 'Atención', 'Documentos'];
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] py-12 px-4 flex flex-col items-center">
+    <div className="min-h-[calc(100dvh-5rem)] sm:min-h-screen bg-[#F8FAFC] py-8 sm:py-12 px-4 flex flex-col items-center">
       <div className="w-full max-w-3xl">
-        {/* Parte superior con Logo, Título y Barra de pasos */}
-        <div className="text-center mb-10">
-          <Activity className="mx-auto h-8 w-8 text-[#0A1E3D] mb-4" />
-          <h1 className="text-3xl font-bold text-[#0A1E3D]">Únete como profesional</h1>
-          <p className="text-slate-500 mt-2 font-medium">Completa tu perfil para empezar a recibir pacientes</p>
+        
+        {/* Parte superior con Logo y Título */}
+        <div className="text-center mb-8 sm:mb-10">
+          <Activity className="mx-auto h-7 w-7 sm:h-8 sm:w-8 text-[#0A1E3D] mb-3 sm:mb-4" />
+          <h1 className="text-2xl sm:text-3xl font-bold text-[#0A1E3D]">Únete como profesional</h1>
+          <p className="text-slate-500 mt-2 text-sm sm:text-base font-medium">Completa tu perfil para empezar a recibir pacientes</p>
         </div>
 
-        {/* Barra de Pasos igual a la segunda imagen */}
-        <div className="flex items-center justify-between mb-10 px-4 md:px-12 relative">
-          {/* Línea conectora de fondo */}
-          <div className="absolute top-5 left-12 right-12 h-[2px] bg-slate-200 -z-0" />
+        {/* Barra de Pasos Responsive */}
+        <div className="flex items-start sm:items-center justify-between mb-8 sm:mb-10 px-2 sm:px-12 relative">
+          {/* Línea conectora de fondo dinámica */}
+          <div className="absolute top-4 sm:top-5 left-[10%] right-[10%] sm:left-16 sm:right-16 h-[2px] bg-slate-200 -z-0" />
           
           {steps.map((label, index) => {
             const stepNumber = index + 1;
@@ -40,13 +41,13 @@ export default function RegistroFisio() {
             const isCompleted = step > stepNumber;
             
             return (
-              <div key={label} className="relative z-10 flex flex-col items-center">
-                <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold border-2 transition-colors
-                  ${isCompleted ? 'bg-[#1A5C3A] border-[#1A5C3A] text-white' : 
-                    isActive ? 'bg-[#1A5C3A] border-[#1A5C3A] text-white' : 'bg-white border-slate-300 text-slate-400'}`}>
+              <div key={label} className="relative z-10 flex flex-col items-center flex-1">
+                <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center text-xs sm:text-sm font-bold border-2 transition-colors duration-300
+                  ${isCompleted ? 'bg-[#1A5C3A] border-[#1A5C3A] text-white shadow-sm' : 
+                    isActive ? 'bg-[#1A5C3A] border-[#1A5C3A] text-white shadow-sm' : 'bg-white border-slate-300 text-slate-400'}`}>
                   {isCompleted ? '✓' : stepNumber}
                 </div>
-                <span className={`text-sm mt-2 font-semibold ${isActive || isCompleted ? 'text-[#0A1E3D]' : 'text-slate-400'}`}>
+                <span className={`text-[10px] sm:text-sm mt-1.5 sm:mt-2 font-semibold text-center transition-colors duration-300 ${isActive || isCompleted ? 'text-[#0A1E3D]' : 'text-slate-400'}`}>
                   {label}
                 </span>
               </div>
@@ -55,12 +56,13 @@ export default function RegistroFisio() {
         </div>
 
         {/* Contenedor del formulario */}
-        <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-100">
+        <div className="bg-white p-5 sm:p-8 rounded-[1.5rem] shadow-sm border border-slate-100">
           {step === 1 && <Step1Datos onNext={handleNext} />}
           {step === 2 && <Step2Profesional onNext={handleNext} onBack={handleBack} />}
           {step === 3 && <Step3Atencion onNext={handleNext} onBack={handleBack} />}
           {step === 4 && <Step4Documentos formData={formData} onBack={handleBack} />}
         </div>
+        
       </div>
     </div>
   );
