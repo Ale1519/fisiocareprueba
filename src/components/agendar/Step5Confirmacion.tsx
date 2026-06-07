@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
-import { CheckCircle2, Calendar, Clock, User, Home } from 'lucide-react';
+import { CheckCircle2, Home } from 'lucide-react';
 
 export default function Step5Confirmacion({ fisio, data }: any) {
   const navigate = useNavigate();
