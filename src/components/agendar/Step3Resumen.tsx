@@ -1,102 +1,77 @@
-import { useState, useEffect } from 'react';
-import { supabase } from '../../lib/supabase';
-import { ArrowLeft, Calendar, Clock, Home as HomeIcon, Video, MapPin } from 'lucide-react';
+import { ArrowLeft, ShieldCheck } from 'lucide-react';
 
 export default function Step3Resumen({ fisio, data, onNext, onBack }: any) {
-  const [nombreDistrito, setNombreDistrito] = useState('');
-  const isDomicilio = data.modalidad === 'domicilio';
-
-  // Obtener el nombre del distrito basado en el ID seleccionado previamente
-  useEffect(() => {
-    if (isDomicilio && data.distrito_id) {
-      const fetchNombreDistrito = async () => {
-        const { data: dData } = await supabase
-          .from('distritos')
-          .select('nombre')
-          .eq('id', data.distrito_id)
-          .single();
-        if (dData) setNombreDistrito(dData.nombre);
-      };
-      fetchNombreDistrito();
-    }
-  }, [isDomicilio, data.distrito_id]);
+  // Función simple para formatear la fecha (ej. "2026-06-07" -> "domingo, 7 de junio")
+  const formatearFecha = (fechaStr: string) => {
+    if (!fechaStr) return '';
+    // Ajuste de zona horaria para evitar que se reste un día
+    const [year, month, day] = fechaStr.split('-');
+    const fecha = new Date(Number(year), Number(month) - 1, Number(day));
+    return fecha.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' });
+  };
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <div>
-        <h2 className="text-xl font-bold text-[#0A1E3D]">Resumen de tu cita</h2>
-        <p className="text-slate-500 text-sm mt-1">Confirma que toda la información sea correcta antes de proceder al pago.</p>
+        <h2 className="text-xl font-bold text-[#0A1E3D]">Resumen</h2>
+        <p className="text-slate-500 text-sm mt-1">Revisa los detalles antes de pagar</p>
       </div>
 
-      {/* BLOQUE DE REVISIÓN CENTRAL */}
-      <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-6 space-y-5 shadow-sm">
-        
-        {/* Detalle de Modalidad */}
-        <div className="flex items-center gap-4 pb-4 border-b border-slate-200/60">
-          <div className="h-10 w-10 bg-white rounded-full flex items-center justify-center shadow-sm text-[#1A5C3A] shrink-0">
-            {isDomicilio ? <HomeIcon className="h-5 w-5" /> : <Video className="h-5 w-5" />}
+      {/* Tabla de Resumen */}
+      <div className="bg-[#F8FAFC] rounded-2xl p-6">
+        <div className="space-y-4">
+          <div className="flex justify-between items-center pb-3 border-b border-slate-200/60">
+            <span className="text-sm text-slate-500 font-medium">Profesional</span>
+            <span className="text-sm font-bold text-[#0A1E3D]">{fisio?.nombres} {fisio?.apellidos}</span>
           </div>
-          <div>
-            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Modalidad elegida</p>
-            <p className="text-sm font-semibold text-[#0A1E3D]">
-              {isDomicilio ? 'Atención Física a Domicilio' : 'Consulta Virtual / Videollamada'}
-            </p>
+          
+          <div className="flex justify-between items-center pb-3 border-b border-slate-200/60">
+            <span className="text-sm text-slate-500 font-medium">Modalidad</span>
+            <span className="text-sm font-bold text-[#0A1E3D]">
+              {data.modalidad === 'domicilio' ? 'A domicilio' : 'Videollamada'}
+            </span>
           </div>
-        </div>
 
-        {/* Detalle de Fecha y Hora */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pb-4 border-b border-slate-200/60">
-          <div className="flex items-start gap-3">
-            <Calendar className="h-5 w-5 text-slate-400 mt-0.5" />
-            <div>
-              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Fecha programada</p>
-              <p className="text-sm font-semibold text-[#0A1E3D]">{data.fecha}</p>
-            </div>
+          <div className="flex justify-between items-center pb-3 border-b border-slate-200/60">
+            <span className="text-sm text-slate-500 font-medium">Fecha</span>
+            <span className="text-sm font-bold text-[#0A1E3D] capitalize">{formatearFecha(data.fecha)}</span>
           </div>
-          <div className="flex items-start gap-3">
-            <Clock className="h-5 w-5 text-slate-400 mt-0.5" />
-            <div>
-              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Bloque horario</p>
-              <p className="text-sm font-semibold text-[#0A1E3D]">{data.hora} hrs</p>
-            </div>
-          </div>
-        </div>
 
-        {/* Detalle de Ubicación (Solo si corresponde) */}
-        {isDomicilio && (
-          <div className="flex items-start gap-3 pb-4 border-b border-slate-200/60 animate-fadeIn">
-            <MapPin className="h-5 w-5 text-slate-400 mt-0.5" />
-            <div>
-              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Dirección de Destino</p>
-              <p className="text-sm font-semibold text-[#0A1E3D]">
-                {data.direccion_exacta}
-              </p>
-              <p className="text-xs text-slate-500 mt-0.5">Distrito: {nombreDistrito || 'Cargando...'}</p>
-            </div>
+          <div className="flex justify-between items-center pb-3 border-b border-slate-200/60">
+            <span className="text-sm text-slate-500 font-medium">Hora</span>
+            <span className="text-sm font-bold text-[#0A1E3D]">{data.hora}</span>
           </div>
-        )}
 
-        {/* Desglose de Precios */}
-        <div className="flex justify-between items-center pt-2">
-          <div>
-            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Inversión del servicio</p>
-            <p className="text-xs text-slate-500 font-light mt-0.5">Tarifa estándar por sesión</p>
+          <div className="flex justify-between items-center pb-3 border-b border-slate-200/60">
+            <span className="text-sm text-slate-500 font-medium">Duración</span>
+            <span className="text-sm font-bold text-[#0A1E3D]">50 minutos</span>
           </div>
-          <p className="text-3xl font-extrabold text-[#1A5C3A]">S/ {fisio?.precio_sesion}</p>
+
+          <div className="flex justify-between items-center pt-2">
+            <span className="text-base font-bold text-[#0A1E3D]">Total</span>
+            <span className="text-2xl font-extrabold text-[#0A1E3D]">S/ {fisio?.precio_sesion}</span>
+          </div>
         </div>
       </div>
 
-      {/* BOTONES DE NAVEGACIÓN */}
-      <div className="mt-10 pt-6 border-t border-slate-100 flex items-center justify-between">
-        <button onClick={onBack} className="font-bold text-sm flex items-center gap-2 text-slate-500 hover:text-slate-800">
+      {/* Alerta de Cancelación */}
+      <div className="bg-[#E8F5EE] border border-[#B8E0CA] rounded-xl p-4 flex items-center gap-3">
+        <ShieldCheck className="h-5 w-5 text-[#1A5C3A] shrink-0" />
+        <p className="text-xs text-[#1A6645] font-medium">
+          Cancelación gratuita hasta 12 horas antes. Reembolso completo si tu fisio no se presenta.
+        </p>
+      </div>
+
+      {/* Botones */}
+      <div className="mt-8 flex items-center justify-between">
+        <button onClick={onBack} className="font-bold text-sm flex items-center gap-2 text-slate-500 hover:text-slate-800 transition">
           <ArrowLeft className="h-4 w-4" /> Atrás
         </button>
-        
         <button 
-          onClick={() => onNext({})} // No hay nuevos datos que mutar, el estado está completo
-          className="bg-[#6B8A9E] hover:bg-[#5a7689] text-white px-6 py-2.5 rounded-xl font-bold text-sm transition-colors"
+          onClick={() => onNext({})} 
+          className="bg-[#2B4B6F] hover:bg-[#1E3A5F] text-white px-6 py-2.5 rounded-xl font-bold text-sm transition-colors"
         >
-          Proceder al Pago →
+          Continuar →
         </button>
       </div>
     </div>
