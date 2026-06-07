@@ -50,7 +50,8 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#F8FAFC] p-4 sm:p-6">
+    
+    <div className="min-h-[calc(100dvh-5rem)] sm:min-h-screen flex items-center justify-center bg-[#F8FAFC] p-4 sm:p-6 pb-20 sm:pb-6">
       <div className="w-full max-w-md">
         
         {/* Logo Superior */}
