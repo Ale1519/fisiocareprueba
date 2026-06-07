@@ -52,7 +52,7 @@ export default function Landing() {
                 onClick={() => navigate('/login')} 
                 className="btn-outline w-full sm:w-auto flex items-center justify-center gap-2 px-7 py-3.5 rounded-xl border border-slate-300 text-slate-700 font-medium transition hover:bg-slate-50"
               >
-                Soy fisioterapeuta
+                Soy fisioterapeuta <ArrowRight className="h-4 w-4" />
               </button>
             </div>
 
