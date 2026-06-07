@@ -140,7 +140,7 @@ export default function Especialistas() {
             <Search className="h-5 w-5 text-slate-400 flex-shrink-0" />
             <input
               type="text"
-              placeholder="Buscar por nombre, especialidad o palabra clave..."
+              placeholder="Buscar por Nombre"
               value={busqueda}
               onChange={(e) => setBusqueda(e.target.value)}
               className="w-full bg-transparent py-2.5 px-3 text-sm focus:outline-none text-slate-700 placeholder-slate-400 font-light"
