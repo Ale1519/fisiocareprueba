@@ -12,7 +12,7 @@ export default function Navbar() {
   const navLinks = [
     { name: 'Inicio', path: '/' },
     { name: 'Especialistas', path: '/especialistas' },
-    { name: '¿Cómo funcionaaaaaaaaaaa?', path: '/como-funciona' }
+    { name: '¿Cómo funciona?', path: '/como-funciona' }
   ];
 
   // Función para cerrar el menú móvil al hacer clic en un enlace
@@ -45,13 +45,7 @@ export default function Navbar() {
               {item.name}
             </Link>
           ))}
-          
-          <Link 
-            to="/registro-fisio"
-            className="ml-4 bg-[#E8F5EE] text-[#1A6645] px-5 py-2.5 rounded-full text-sm font-bold border border-[#B8E0CA] hover:bg-[#dcf3e7] transition flex items-center gap-1"
-          >
-            ✦ ¿Eres fisio? Únete
-          </Link>
+        
         </div>
 
         {/* Acciones Desktop */}
@@ -107,14 +101,7 @@ export default function Navbar() {
 
           {/* Botones Móvil */}
           <div className="flex flex-col gap-3">
-            <Link 
-              to="/registro-fisio"
-              onClick={closeMenu}
-              className="bg-[#E8F5EE] text-[#1A6645] px-4 py-3.5 rounded-xl text-sm font-bold border border-[#B8E0CA] flex items-center justify-center gap-2 hover:bg-[#dcf3e7] transition"
-            >
-              ✦ ¿Eres fisioterapeuta? Únete
-            </Link>
-            
+    
             <div className="grid grid-cols-2 gap-3 mt-2">
               <Link 
                 to="/login"
