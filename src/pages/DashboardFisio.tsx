@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom'; 
 import { supabase } from '../lib/supabase';
 import { 
   Calendar, Clock, MapPin, Video, Users, DollarSign, 
   TrendingUp, CheckCircle, FileText, Settings, ChevronRight, UserCircle 
 } from 'lucide-react';
 
+// ... el resto de tu código sigue igual
 export default function DashboardFisio() {
   const [fisio, setFisio] = useState<any>(null);
   const [citasHoy, setCitasHoy] = useState<any[]>([]);
