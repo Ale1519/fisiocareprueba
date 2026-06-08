@@ -1,7 +1,10 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import { User, Save, ArrowLeft, CheckCircle2, Stethoscope, DollarSign, Home, Video, AlignLeft } from 'lucide-react';
+import { 
+  User, Save, ArrowLeft, CheckCircle2, Stethoscope, DollarSign, 
+  Home, Video, AlignLeft, UploadCloud, File as FileIcon, X 
+} from 'lucide-react';
 
 export default function PerfilFisio() {
   const [loading, setLoading] = useState(true);
@@ -11,11 +14,19 @@ export default function PerfilFisio() {
   // Estados del formulario
   const [nombres, setNombres] = useState('');
   const [apellidos, setApellidos] = useState('');
-  const [especialidad, setEspecialidad] = useState('');
+  const [especialidades, setEspecialidades] = useState<string[]>([]);
   const [sobreMi, setSobreMi] = useState('');
   const [precioSesion, setPrecioSesion] = useState<number | ''>('');
   const [ofreceDomicilio, setOfreceDomicilio] = useState(false);
   const [ofreceVideollamada, setOfreceVideollamada] = useState(false);
+  
+  // Estado para los documentos
+  const [archivos, setArchivos] = useState<File[]>([]);
+
+  const listaEspecialidades = [
+    'Deportiva', 'Traumatológica', 'Neurológica', 'Geriátrica', 
+    'Pediátrica', 'Post-operatoria', 'Terapia Manual', 'Dolor Crónico'
+  ];
 
   useEffect(() => {
     const cargarPerfil = async () => {
@@ -32,7 +43,8 @@ export default function PerfilFisio() {
         if (fisio) {
           setNombres(fisio.nombres || '');
           setApellidos(fisio.apellidos || '');
-          setEspecialidad(fisio.especialidad || '');
+          // Convertimos el string separado por comas de la BD en un array para los botones
+          setEspecialidades(fisio.especialidad ? fisio.especialidad.split(', ') : []);
           setSobreMi(fisio.sobre_mi || '');
           setPrecioSesion(fisio.precio_sesion || '');
           setOfreceDomicilio(fisio.ofrece_domicilio || false);
@@ -48,6 +60,23 @@ export default function PerfilFisio() {
     cargarPerfil();
   }, []);
 
+  const toggleEspecialidad = (esp: string) => {
+    setEspecialidades(prev => 
+      prev.includes(esp) ? prev.filter(e => e !== esp) : [...prev, esp]
+    );
+  };
+
+  const manejarSubidaArchivos = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      const nuevosArchivos = Array.from(e.target.files);
+      setArchivos(prev => [...prev, ...nuevosArchivos]);
+    }
+  };
+
+  const quitarArchivo = (index: number) => {
+    setArchivos(prev => prev.filter((_, i) => i !== index));
+  };
+
   const guardarCambios = async (e: React.FormEvent) => {
     e.preventDefault();
     setGuardando(true);
@@ -57,12 +86,13 @@ export default function PerfilFisio() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("No hay sesión activa");
 
+      // 1. Guardar datos en la tabla fisioterapeutas
       const { error } = await supabase
         .from('fisioterapeutas')
         .update({
           nombres,
           apellidos,
-          especialidad,
+          especialidad: especialidades.join(', '), // Lo volvemos a unir como texto para la BD
           sobre_mi: sobreMi,
           precio_sesion: precioSesion === '' ? null : Number(precioSesion),
           ofrece_domicilio: ofreceDomicilio,
@@ -71,6 +101,9 @@ export default function PerfilFisio() {
         .eq('id', user.id);
 
       if (error) throw error;
+
+      // 2. Aquí iría la lógica de subir los "archivos" al Storage de Supabase si hay nuevos.
+      // if (archivos.length > 0) { ... lógica de subida ... }
 
       setMensaje({ tipo: 'exito', texto: '¡Tu perfil profesional ha sido actualizado!' });
       setTimeout(() => setMensaje(null), 3000);
@@ -146,21 +179,35 @@ export default function PerfilFisio() {
                 </div>
               </div>
 
-              {/* Tarjeta 2: Perfil Profesional */}
+              {/* Tarjeta 2: Perfil Profesional (AHORA CON BOTONES) */}
               <div className="bg-white rounded-3xl p-6 md:p-8 shadow-sm border border-slate-100 space-y-6">
                 <h2 className="text-lg font-bold text-[#0A1E3D] flex items-center gap-2 border-b border-slate-100 pb-4">
                   <Stethoscope className="h-5 w-5 text-[#1A5C3A]" /> Perfil Profesional
                 </h2>
                 
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <label className="text-sm font-bold text-slate-700">Especialidad Principal</label>
-                    <input
-                      type="text" value={especialidad} onChange={(e) => setEspecialidad(e.target.value)} placeholder="Ej. Fisioterapia Deportiva, Rehabilitación Post-operatoria..."
-                      className="w-full bg-slate-50 border border-slate-200 p-3.5 rounded-xl text-sm focus:outline-none focus:border-[#1A5C3A] focus:bg-white transition"
-                    />
+                <div className="space-y-6">
+                  {/* Especialidades */}
+                  <div className="space-y-3">
+                    <label className="text-sm font-bold text-slate-700">Especialidades</label>
+                    <div className="flex flex-wrap gap-2">
+                      {listaEspecialidades.map((esp) => (
+                        <button
+                          type="button"
+                          key={esp}
+                          onClick={() => toggleEspecialidad(esp)}
+                          className={`px-4 py-2 rounded-xl text-sm font-bold border transition-all ${
+                            especialidades.includes(esp)
+                              ? 'bg-[#1A5C3A] text-white border-[#1A5C3A] shadow-sm'
+                              : 'bg-white text-slate-600 border-slate-200 hover:border-[#1A5C3A] hover:bg-slate-50'
+                          }`}
+                        >
+                          {esp}
+                        </button>
+                      ))}
+                    </div>
                   </div>
 
+                  {/* Biografía */}
                   <div className="space-y-2">
                     <label className="text-sm font-bold text-slate-700 flex items-center gap-2">
                       <AlignLeft className="h-4 w-4 text-slate-400" /> Sobre ti (Biografía)
@@ -173,11 +220,54 @@ export default function PerfilFisio() {
                   </div>
                 </div>
               </div>
+
+              {/* Tarjeta 3: Documentos (NUEVO) */}
+              <div className="bg-white rounded-3xl p-6 md:p-8 shadow-sm border border-slate-100 space-y-6">
+                <h2 className="text-lg font-bold text-[#0A1E3D] flex items-center gap-2 border-b border-slate-100 pb-4">
+                  <UploadCloud className="h-5 w-5 text-[#1A5C3A]" /> Documentos de Verificación
+                </h2>
+                
+                <div className="space-y-4">
+                  <p className="text-sm text-slate-500">Sube aquí tu colegiatura (CTMP), DNI o certificados adicionales si no los cargaste en el registro.</p>
+                  
+                  {/* Área de Dropzone */}
+                  <div className="border-2 border-dashed border-slate-200 rounded-2xl p-8 text-center hover:bg-slate-50 hover:border-[#1A5C3A] transition">
+                    <input type="file" multiple className="hidden" id="file-upload" onChange={manejarSubidaArchivos} />
+                    <label htmlFor="file-upload" className="cursor-pointer flex flex-col items-center">
+                      <div className="bg-white p-3 rounded-full shadow-sm border border-slate-100 mb-3">
+                        <UploadCloud className="h-6 w-6 text-[#1A5C3A]" />
+                      </div>
+                      <span className="text-sm font-bold text-[#0A1E3D]">Haz clic para subir archivos</span>
+                      <span className="text-xs text-slate-400 mt-1">Formatos permitidos: PDF, JPG, PNG (Max. 5MB)</span>
+                    </label>
+                  </div>
+
+                  {/* Lista de archivos subidos temporalmente */}
+                  {archivos.length > 0 && (
+                    <div className="space-y-2 mt-4">
+                      <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Archivos listos para guardar</p>
+                      {archivos.map((archivo, index) => (
+                        <div key={index} className="flex items-center justify-between bg-slate-50 border border-slate-200 p-3 rounded-xl">
+                          <div className="flex items-center gap-3 overflow-hidden">
+                            <FileIcon className="h-4 w-4 text-[#1A5C3A] shrink-0" />
+                            <span className="text-sm font-semibold text-slate-700 truncate">{archivo.name}</span>
+                          </div>
+                          <button type="button" onClick={() => quitarArchivo(index)} className="text-red-400 hover:text-red-600 p-1">
+                            <X className="h-4 w-4" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+
             </div>
 
             {/* COLUMNA 2: Tarifas y Servicios */}
             <div className="space-y-6">
               
+              {/* Tarifas */}
               <div className="bg-[#0A1E3D] rounded-3xl p-6 md:p-8 shadow-sm text-white space-y-6 relative overflow-hidden">
                 <div className="absolute top-0 right-0 p-4 opacity-10">
                   <DollarSign className="h-32 w-32" />
@@ -197,6 +287,7 @@ export default function PerfilFisio() {
                 </div>
               </div>
 
+              {/* Configuración de Servicios */}
               <div className="bg-white rounded-3xl p-6 md:p-8 shadow-sm border border-slate-100 space-y-6">
                 <h2 className="text-lg font-bold text-[#0A1E3D] flex items-center gap-2 border-b border-slate-100 pb-4">
                   Configuración
