@@ -208,17 +208,15 @@ export default function DashboardPaciente() {
                   <ChevronRight className="h-4 w-4 text-slate-300 group-hover:text-[#1A5C3A] transition" />
                 </Link>
                 
-                <button className="w-full flex items-center justify-between p-4 rounded-xl border border-slate-100 hover:border-slate-300 hover:bg-slate-50 transition group">
+                <Link to="/perfil-paciente" className="w-full flex items-center justify-between p-4 rounded-xl border border-slate-100 hover:border-[#1A5C3A] hover:bg-[#F8FAF9] transition group">
                   <div className="flex items-center gap-3">
                     <div className="bg-slate-50 group-hover:bg-white p-2 rounded-lg transition">
-                      <User className="h-4 w-4 text-slate-500" />
+                      <User className="h-4 w-4 text-slate-500 group-hover:text-[#1A5C3A] transition" />
                     </div>
                     <span className="text-sm font-bold text-slate-600 group-hover:text-[#0A1E3D] transition">Mi perfil y datos</span>
                   </div>
-                  <ChevronRight className="h-4 w-4 text-slate-300 transition" />
-                </button>
-              </div>
-            </div>
+                  <ChevronRight className="h-4 w-4 text-slate-300 group-hover:text-[#1A5C3A] transition" />
+                </Link>
 
             {/* TARJETA DE SOPORTE */}
             <div className="bg-[#0A1E3D] rounded-3xl p-6 text-white relative overflow-hidden">
