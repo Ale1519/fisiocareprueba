@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { 
   User, Save, ArrowLeft, CheckCircle2, Stethoscope, DollarSign, 
-  Home, Video, AlignLeft, UploadCloud, File as FileIcon, X 
+  Home, Video, AlignLeft, UploadCloud, MapPin, FileText, Check
 } from 'lucide-react';
 
 export default function PerfilFisio() {
@@ -14,14 +14,23 @@ export default function PerfilFisio() {
   // Estados del formulario
   const [nombres, setNombres] = useState('');
   const [apellidos, setApellidos] = useState('');
-  const [especialidades, setEspecialidades] = useState<string[]>([]);
   const [sobreMi, setSobreMi] = useState('');
   const [precioSesion, setPrecioSesion] = useState<number | ''>('');
   const [ofreceDomicilio, setOfreceDomicilio] = useState(false);
   const [ofreceVideollamada, setOfreceVideollamada] = useState(false);
   
-  // Estado para los documentos
-  const [archivos, setArchivos] = useState<File[]>([]);
+  // Estados de opciones múltiples
+  const [especialidades, setEspecialidades] = useState<string[]>([]);
+  const [distritosSeleccionados, setDistritosSeleccionados] = useState<string[]>([]);
+  const [listaDistritosBD, setListaDistritosBD] = useState<any[]>([]);
+
+  // Estado para los 4 documentos
+  const [documentos, setDocumentos] = useState({
+    dniFrente: null as File | null,
+    dniReverso: null as File | null,
+    titulo: null as File | null,
+    recibo: null as File | null
+  });
 
   const listaEspecialidades = [
     'Deportiva', 'Traumatológica', 'Neurológica', 'Geriátrica', 
@@ -29,26 +38,47 @@ export default function PerfilFisio() {
   ];
 
   useEffect(() => {
-    const cargarPerfil = async () => {
+    const cargarDatos = async () => {
       try {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) return;
 
+        // 1. Cargar todos los distritos disponibles en la BD
+        const { data: distritosData } = await supabase.from('distritos').select('id, nombre').order('nombre');
+        if (distritosData) setListaDistritosBD(distritosData);
+
+        // 2. Cargar datos del fisio y sus distritos relacionados
         const { data: fisio } = await supabase
           .from('fisioterapeutas')
-          .select('*')
+          .select(`
+            *,
+            fisioterapeuta_distritos ( distrito_id )
+          `)
           .eq('id', user.id)
           .single();
 
         if (fisio) {
           setNombres(fisio.nombres || '');
           setApellidos(fisio.apellidos || '');
-          // Convertimos el string separado por comas de la BD en un array para los botones
-          setEspecialidades(fisio.especialidad ? fisio.especialidad.split(', ') : []);
-          setSobreMi(fisio.sobre_mi || '');
+          
+          // Mapeo seguro de especialidades (limpia espacios extra por si acaso)
+          if (fisio.especialidad) {
+            const espArray = fisio.especialidad.split(',').map((e: string) => e.trim());
+            setEspecialidades(espArray);
+          }
+
+          // Mapeo seguro de "Sobre ti" (busca la columna correcta)
+          setSobreMi(fisio.sobre_ti || fisio.sobre_mi || fisio.biografia || fisio.experiencia || '');
+          
           setPrecioSesion(fisio.precio_sesion || '');
           setOfreceDomicilio(fisio.ofrece_domicilio || false);
           setOfreceVideollamada(fisio.ofrece_videollamada || false);
+
+          // Mapear los distritos que ya tenía seleccionados
+          if (fisio.fisioterapeuta_distritos) {
+            const distritosIds = fisio.fisioterapeuta_distritos.map((fd: any) => fd.distrito_id);
+            setDistritosSeleccionados(distritosIds);
+          }
         }
       } catch (error) {
         console.error("Error al cargar el perfil:", error);
@@ -57,7 +87,7 @@ export default function PerfilFisio() {
       }
     };
 
-    cargarPerfil();
+    cargarDatos();
   }, []);
 
   const toggleEspecialidad = (esp: string) => {
@@ -66,15 +96,14 @@ export default function PerfilFisio() {
     );
   };
 
-  const manejarSubidaArchivos = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) {
-      const nuevosArchivos = Array.from(e.target.files);
-      setArchivos(prev => [...prev, ...nuevosArchivos]);
-    }
+  const toggleDistrito = (id: string) => {
+    setDistritosSeleccionados(prev => 
+      prev.includes(id) ? prev.filter(d => d !== id) : [...prev, id]
+    );
   };
 
-  const quitarArchivo = (index: number) => {
-    setArchivos(prev => prev.filter((_, i) => i !== index));
+  const manejarArchivo = (tipo: keyof typeof documentos, archivo: File | null) => {
+    setDocumentos(prev => ({ ...prev, [tipo]: archivo }));
   };
 
   const guardarCambios = async (e: React.FormEvent) => {
@@ -86,30 +115,43 @@ export default function PerfilFisio() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("No hay sesión activa");
 
-      // 1. Guardar datos en la tabla fisioterapeutas
-      const { error } = await supabase
+      // 1. Actualizar tabla principal
+      const { error: errorFisio } = await supabase
         .from('fisioterapeutas')
         .update({
           nombres,
           apellidos,
-          especialidad: especialidades.join(', '), // Lo volvemos a unir como texto para la BD
-          sobre_mi: sobreMi,
+          especialidad: especialidades.join(', '), 
+          sobre_mi: sobreMi, // <-- Ojo: si tu columna se llama diferente en Supabase, cámbialo aquí
           precio_sesion: precioSesion === '' ? null : Number(precioSesion),
           ofrece_domicilio: ofreceDomicilio,
           ofrece_videollamada: ofreceVideollamada
         })
         .eq('id', user.id);
 
-      if (error) throw error;
+      if (errorFisio) throw errorFisio;
 
-      // 2. Aquí iría la lógica de subir los "archivos" al Storage de Supabase si hay nuevos.
-      // if (archivos.length > 0) { ... lógica de subida ... }
+      // 2. Actualizar distritos (Borrar los viejos e insertar los nuevos)
+      await supabase.from('fisioterapeuta_distritos').delete().eq('fisioterapeuta_id', user.id);
+      
+      if (distritosSeleccionados.length > 0) {
+        const distritosInsert = distritosSeleccionados.map(dId => ({
+          fisioterapeuta_id: user.id,
+          distrito_id: dId
+        }));
+        await supabase.from('fisioterapeuta_distritos').insert(distritosInsert);
+      }
 
-      setMensaje({ tipo: 'exito', texto: '¡Tu perfil profesional ha sido actualizado!' });
+      // 3. (Opcional Futuro) Lógica de subida de archivos al Storage
+      // if (documentos.dniFrente) await supabase.storage.from('documentos').upload(...)
+
+      setMensaje({ tipo: 'exito', texto: '¡Perfil y configuración guardados correctamente!' });
+      window.scrollTo({ top: 0, behavior: 'smooth' });
       setTimeout(() => setMensaje(null), 3000);
 
     } catch (error: any) {
-      setMensaje({ tipo: 'error', texto: 'Hubo un problema al guardar: ' + error.message });
+      setMensaje({ tipo: 'error', texto: 'Error al guardar: ' + error.message });
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     } finally {
       setGuardando(false);
     }
@@ -125,16 +167,16 @@ export default function PerfilFisio() {
 
   return (
     <div className="min-h-screen bg-[#F4F7FB] pb-12">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 pt-8">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pt-8">
         
-        {/* ENCABEZADO Y NAVEGACIÓN */}
+        {/* ENCABEZADO */}
         <div className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <Link to="/dashboard-fisio" className="inline-flex items-center gap-2 text-slate-500 hover:text-[#0A1E3D] font-medium transition mb-4">
               <ArrowLeft className="h-4 w-4" /> Volver a mi panel
             </Link>
             <h1 className="text-3xl font-extrabold text-[#0A1E3D]">Editar Perfil Profesional</h1>
-            <p className="text-slate-500 mt-1">La información que coloques aquí será visible para los pacientes.</p>
+            <p className="text-slate-500 mt-1">Completa tu información, distritos y documentos faltantes.</p>
           </div>
         </div>
 
@@ -150,51 +192,42 @@ export default function PerfilFisio() {
             </div>
           )}
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             
-            {/* COLUMNA 1: Datos Personales e Info */}
-            <div className="md:col-span-2 space-y-6">
+            {/* COLUMNA 1: Datos Personales e Info (Izquierda) */}
+            <div className="lg:col-span-2 space-y-6">
               
               {/* Tarjeta 1: Identidad */}
               <div className="bg-white rounded-3xl p-6 md:p-8 shadow-sm border border-slate-100 space-y-6">
                 <h2 className="text-lg font-bold text-[#0A1E3D] flex items-center gap-2 border-b border-slate-100 pb-4">
                   <User className="h-5 w-5 text-[#1A5C3A]" /> Datos Personales
                 </h2>
-                
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <label className="text-sm font-bold text-slate-700">Nombres</label>
-                    <input
-                      type="text" required value={nombres} onChange={(e) => setNombres(e.target.value)}
-                      className="w-full bg-slate-50 border border-slate-200 p-3.5 rounded-xl text-sm focus:outline-none focus:border-[#1A5C3A] focus:bg-white transition"
-                    />
+                    <input type="text" required value={nombres} onChange={(e) => setNombres(e.target.value)} className="w-full bg-slate-50 border border-slate-200 p-3.5 rounded-xl text-sm focus:outline-none focus:border-[#1A5C3A] focus:bg-white transition" />
                   </div>
                   <div className="space-y-2">
                     <label className="text-sm font-bold text-slate-700">Apellidos</label>
-                    <input
-                      type="text" required value={apellidos} onChange={(e) => setApellidos(e.target.value)}
-                      className="w-full bg-slate-50 border border-slate-200 p-3.5 rounded-xl text-sm focus:outline-none focus:border-[#1A5C3A] focus:bg-white transition"
-                    />
+                    <input type="text" required value={apellidos} onChange={(e) => setApellidos(e.target.value)} className="w-full bg-slate-50 border border-slate-200 p-3.5 rounded-xl text-sm focus:outline-none focus:border-[#1A5C3A] focus:bg-white transition" />
                   </div>
                 </div>
               </div>
 
-              {/* Tarjeta 2: Perfil Profesional (AHORA CON BOTONES) */}
+              {/* Tarjeta 2: Perfil Profesional */}
               <div className="bg-white rounded-3xl p-6 md:p-8 shadow-sm border border-slate-100 space-y-6">
                 <h2 className="text-lg font-bold text-[#0A1E3D] flex items-center gap-2 border-b border-slate-100 pb-4">
                   <Stethoscope className="h-5 w-5 text-[#1A5C3A]" /> Perfil Profesional
                 </h2>
                 
                 <div className="space-y-6">
-                  {/* Especialidades */}
+                  {/* Especialidades Interactivos */}
                   <div className="space-y-3">
                     <label className="text-sm font-bold text-slate-700">Especialidades</label>
                     <div className="flex flex-wrap gap-2">
                       {listaEspecialidades.map((esp) => (
                         <button
-                          type="button"
-                          key={esp}
-                          onClick={() => toggleEspecialidad(esp)}
+                          type="button" key={esp} onClick={() => toggleEspecialidad(esp)}
                           className={`px-4 py-2 rounded-xl text-sm font-bold border transition-all ${
                             especialidades.includes(esp)
                               ? 'bg-[#1A5C3A] text-white border-[#1A5C3A] shadow-sm'
@@ -213,127 +246,134 @@ export default function PerfilFisio() {
                       <AlignLeft className="h-4 w-4 text-slate-400" /> Sobre ti (Biografía)
                     </label>
                     <textarea
-                      rows={5} value={sobreMi} onChange={(e) => setSobreMi(e.target.value)} placeholder="Cuéntale a tus pacientes sobre tu experiencia, tu enfoque de tratamiento y qué resultados pueden esperar..."
+                      rows={5} value={sobreMi} onChange={(e) => setSobreMi(e.target.value)} placeholder="Cuéntale a tus pacientes sobre tu experiencia, tu enfoque de tratamiento..."
                       className="w-full bg-slate-50 border border-slate-200 p-4 rounded-xl text-sm focus:outline-none focus:border-[#1A5C3A] focus:bg-white transition resize-none"
                     />
-                    <p className="text-xs text-slate-400">Esta es tu carta de presentación, destaca lo que te hace único.</p>
                   </div>
                 </div>
               </div>
 
-              {/* Tarjeta 3: Documentos (NUEVO) */}
+              {/* Tarjeta 3: Zonas de Cobertura (Distritos) */}
               <div className="bg-white rounded-3xl p-6 md:p-8 shadow-sm border border-slate-100 space-y-6">
-                <h2 className="text-lg font-bold text-[#0A1E3D] flex items-center gap-2 border-b border-slate-100 pb-4">
-                  <UploadCloud className="h-5 w-5 text-[#1A5C3A]" /> Documentos de Verificación
-                </h2>
+                <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+                  <h2 className="text-lg font-bold text-[#0A1E3D] flex items-center gap-2">
+                    <MapPin className="h-5 w-5 text-[#1A5C3A]" /> Zonas de Cobertura
+                  </h2>
+                  <span className="text-xs font-bold bg-slate-100 text-slate-500 px-3 py-1 rounded-full">
+                    {distritosSeleccionados.length} seleccionados
+                  </span>
+                </div>
                 
-                <div className="space-y-4">
-                  <p className="text-sm text-slate-500">Sube aquí tu colegiatura (CTMP), DNI o certificados adicionales si no los cargaste en el registro.</p>
-                  
-                  {/* Área de Dropzone */}
-                  <div className="border-2 border-dashed border-slate-200 rounded-2xl p-8 text-center hover:bg-slate-50 hover:border-[#1A5C3A] transition">
-                    <input type="file" multiple className="hidden" id="file-upload" onChange={manejarSubidaArchivos} />
-                    <label htmlFor="file-upload" className="cursor-pointer flex flex-col items-center">
-                      <div className="bg-white p-3 rounded-full shadow-sm border border-slate-100 mb-3">
-                        <UploadCloud className="h-6 w-6 text-[#1A5C3A]" />
-                      </div>
-                      <span className="text-sm font-bold text-[#0A1E3D]">Haz clic para subir archivos</span>
-                      <span className="text-xs text-slate-400 mt-1">Formatos permitidos: PDF, JPG, PNG (Max. 5MB)</span>
-                    </label>
-                  </div>
-
-                  {/* Lista de archivos subidos temporalmente */}
-                  {archivos.length > 0 && (
-                    <div className="space-y-2 mt-4">
-                      <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Archivos listos para guardar</p>
-                      {archivos.map((archivo, index) => (
-                        <div key={index} className="flex items-center justify-between bg-slate-50 border border-slate-200 p-3 rounded-xl">
-                          <div className="flex items-center gap-3 overflow-hidden">
-                            <FileIcon className="h-4 w-4 text-[#1A5C3A] shrink-0" />
-                            <span className="text-sm font-semibold text-slate-700 truncate">{archivo.name}</span>
-                          </div>
-                          <button type="button" onClick={() => quitarArchivo(index)} className="text-red-400 hover:text-red-600 p-1">
-                            <X className="h-4 w-4" />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
+                <p className="text-sm text-slate-500">¿A qué distritos puedes desplazarte para citas a domicilio?</p>
+                
+                <div className="flex flex-wrap gap-2 max-h-60 overflow-y-auto p-1 scrollbar-thin">
+                  {listaDistritosBD.map((distrito) => (
+                    <button
+                      type="button" key={distrito.id} onClick={() => toggleDistrito(distrito.id)}
+                      className={`px-4 py-2 rounded-xl text-sm font-bold border transition-all ${
+                        distritosSeleccionados.includes(distrito.id)
+                          ? 'bg-[#0A1E3D] text-white border-[#0A1E3D] shadow-sm'
+                          : 'bg-white text-slate-600 border-slate-200 hover:border-[#0A1E3D] hover:bg-slate-50'
+                      }`}
+                    >
+                      {distrito.nombre}
+                    </button>
+                  ))}
+                  {listaDistritosBD.length === 0 && (
+                    <p className="text-sm text-slate-400 italic">Cargando distritos...</p>
                   )}
                 </div>
               </div>
 
             </div>
 
-            {/* COLUMNA 2: Tarifas y Servicios */}
+            {/* COLUMNA 2: Tarifas, Servicios y Documentos (Derecha) */}
             <div className="space-y-6">
               
               {/* Tarifas */}
               <div className="bg-[#0A1E3D] rounded-3xl p-6 md:p-8 shadow-sm text-white space-y-6 relative overflow-hidden">
-                <div className="absolute top-0 right-0 p-4 opacity-10">
-                  <DollarSign className="h-32 w-32" />
-                </div>
-                
+                <div className="absolute top-0 right-0 p-4 opacity-10"><DollarSign className="h-32 w-32" /></div>
                 <h2 className="text-lg font-bold flex items-center gap-2 border-b border-white/10 pb-4 relative z-10">
                   <DollarSign className="h-5 w-5 text-emerald-400" /> Tarifas
                 </h2>
-                
                 <div className="space-y-2 relative z-10">
                   <label className="text-sm font-bold text-slate-300">Precio por sesión (S/)</label>
-                  <input
-                    type="number" required min="0" step="0.5" value={precioSesion} onChange={(e) => setPrecioSesion(e.target.value === '' ? '' : Number(e.target.value))}
-                    className="w-full bg-white/10 border border-white/20 p-4 rounded-xl text-lg font-bold text-white placeholder-white/30 focus:outline-none focus:border-emerald-400 focus:bg-white/20 transition"
-                    placeholder="0.00"
-                  />
+                  <input type="number" required min="0" step="0.5" value={precioSesion} onChange={(e) => setPrecioSesion(e.target.value === '' ? '' : Number(e.target.value))} className="w-full bg-white/10 border border-white/20 p-4 rounded-xl text-lg font-bold text-white placeholder-white/30 focus:outline-none focus:border-emerald-400 focus:bg-white/20 transition" placeholder="0.00" />
                 </div>
               </div>
 
               {/* Configuración de Servicios */}
-              <div className="bg-white rounded-3xl p-6 md:p-8 shadow-sm border border-slate-100 space-y-6">
-                <h2 className="text-lg font-bold text-[#0A1E3D] flex items-center gap-2 border-b border-slate-100 pb-4">
-                  Configuración
-                </h2>
+              <div className="bg-white rounded-3xl p-6 shadow-sm border border-slate-100 space-y-4">
+                <h2 className="text-lg font-bold text-[#0A1E3D] border-b border-slate-100 pb-3">Modalidades</h2>
                 
-                <div className="space-y-4">
-                  <label className="flex items-start gap-4 p-4 rounded-xl border border-slate-100 hover:border-[#1A5C3A] hover:bg-slate-50 cursor-pointer transition group">
-                    <div className="mt-1">
-                      <input 
-                        type="checkbox" checked={ofreceDomicilio} onChange={(e) => setOfreceDomicilio(e.target.checked)}
-                        className="w-5 h-5 accent-[#1A5C3A] rounded border-slate-300 focus:ring-[#1A5C3A]"
-                      />
-                    </div>
-                    <div>
-                      <p className="font-bold text-[#0A1E3D] flex items-center gap-2"><Home className="h-4 w-4 text-slate-400 group-hover:text-[#1A5C3A]" /> A Domicilio</p>
-                      <p className="text-xs text-slate-500 mt-1">Me desplazo a la casa del paciente.</p>
-                    </div>
-                  </label>
+                <label className="flex items-start gap-4 p-4 rounded-xl border border-slate-100 hover:border-[#1A5C3A] hover:bg-slate-50 cursor-pointer transition group">
+                  <div className="mt-1"><input type="checkbox" checked={ofreceDomicilio} onChange={(e) => setOfreceDomicilio(e.target.checked)} className="w-5 h-5 accent-[#1A5C3A] rounded" /></div>
+                  <div>
+                    <p className="font-bold text-[#0A1E3D] flex items-center gap-2"><Home className="h-4 w-4 text-slate-400 group-hover:text-[#1A5C3A]" /> A Domicilio</p>
+                    <p className="text-xs text-slate-500 mt-1">Voy a la casa del paciente.</p>
+                  </div>
+                </label>
 
-                  <label className="flex items-start gap-4 p-4 rounded-xl border border-slate-100 hover:border-[#1A5C3A] hover:bg-slate-50 cursor-pointer transition group">
-                    <div className="mt-1">
+                <label className="flex items-start gap-4 p-4 rounded-xl border border-slate-100 hover:border-[#1A5C3A] hover:bg-slate-50 cursor-pointer transition group">
+                  <div className="mt-1"><input type="checkbox" checked={ofreceVideollamada} onChange={(e) => setOfreceVideollamada(e.target.checked)} className="w-5 h-5 accent-[#1A5C3A] rounded" /></div>
+                  <div>
+                    <p className="font-bold text-[#0A1E3D] flex items-center gap-2"><Video className="h-4 w-4 text-slate-400 group-hover:text-[#1A5C3A]" /> Videollamada</p>
+                    <p className="text-xs text-slate-500 mt-1">Atención remota.</p>
+                  </div>
+                </label>
+              </div>
+
+              {/* Tarjeta 4: Carga de 4 Documentos */}
+              <div className="bg-white rounded-3xl p-6 shadow-sm border border-slate-100 space-y-4">
+                <h2 className="text-lg font-bold text-[#0A1E3D] flex items-center gap-2 border-b border-slate-100 pb-3">
+                  <UploadCloud className="h-5 w-5 text-[#1A5C3A]" /> Documentos
+                </h2>
+                <p className="text-xs text-slate-500">Añade los archivos que te faltaron en el registro para verificar tu perfil.</p>
+                
+                <div className="space-y-3">
+                  {/* Renderizamos los 4 tipos de documentos dinámicamente */}
+                  {[
+                    { id: 'dniFrente', label: 'DNI (Frente)' },
+                    { id: 'dniReverso', label: 'DNI (Reverso)' },
+                    { id: 'titulo', label: 'Título / Colegiatura' },
+                    { id: 'recibo', label: 'Recibo de Servicios' }
+                  ].map((doc) => (
+                    <div key={doc.id} className="relative">
                       <input 
-                        type="checkbox" checked={ofreceVideollamada} onChange={(e) => setOfreceVideollamada(e.target.checked)}
-                        className="w-5 h-5 accent-[#1A5C3A] rounded border-slate-300 focus:ring-[#1A5C3A]"
+                        type="file" id={doc.id} className="hidden" 
+                        onChange={(e) => manejarArchivo(doc.id as any, e.target.files ? e.target.files[0] : null)}
                       />
+                      <label htmlFor={doc.id} className={`flex items-center justify-between p-3 rounded-xl border border-dashed cursor-pointer transition ${documentos[doc.id as keyof typeof documentos] ? 'bg-emerald-50 border-emerald-300' : 'bg-slate-50 border-slate-300 hover:border-[#1A5C3A]'}`}>
+                        <div className="flex items-center gap-3 overflow-hidden">
+                          <div className={`p-2 rounded-lg ${documentos[doc.id as keyof typeof documentos] ? 'bg-emerald-100' : 'bg-white'}`}>
+                            {documentos[doc.id as keyof typeof documentos] ? <Check className="h-4 w-4 text-emerald-600" /> : <FileText className="h-4 w-4 text-slate-400" />}
+                          </div>
+                          <div className="truncate">
+                            <p className="text-sm font-bold text-slate-700">{doc.label}</p>
+                            <p className="text-xs text-slate-400 truncate">
+                              {documentos[doc.id as keyof typeof documentos] ? documentos[doc.id as keyof typeof documentos]?.name : 'Subir archivo...'}
+                            </p>
+                          </div>
+                        </div>
+                      </label>
                     </div>
-                    <div>
-                      <p className="font-bold text-[#0A1E3D] flex items-center gap-2"><Video className="h-4 w-4 text-slate-400 group-hover:text-[#1A5C3A]" /> Videollamada</p>
-                      <p className="text-xs text-slate-500 mt-1">Atiendo de manera remota (Online).</p>
-                    </div>
-                  </label>
+                  ))}
                 </div>
               </div>
 
             </div>
           </div>
 
+          {/* Botón Flotante para Guardar */}
           <div className="pt-6 border-t border-slate-200 flex justify-end sticky bottom-6 z-20">
             <button
               type="submit" disabled={guardando}
-              className="bg-[#1A5C3A] hover:bg-[#124229] text-white px-8 py-4 rounded-xl font-extrabold text-sm transition shadow-lg shadow-[#1A5C3A]/20 flex items-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed w-full md:w-auto justify-center"
+              className="bg-[#1A5C3A] hover:bg-[#124229] text-white px-10 py-4 rounded-xl font-extrabold text-sm transition shadow-xl shadow-[#1A5C3A]/20 flex items-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed w-full md:w-auto justify-center"
             >
               {guardando ? (
                 <><div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div> Guardando...</>
               ) : (
-                <><Save className="h-5 w-5" /> Guardar Perfil</>
+                <><Save className="h-5 w-5" /> Guardar Perfil Completo</>
               )}
             </button>
           </div>
