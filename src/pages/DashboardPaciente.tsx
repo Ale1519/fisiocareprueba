@@ -217,6 +217,8 @@ export default function DashboardPaciente() {
                   </div>
                   <ChevronRight className="h-4 w-4 text-slate-300 group-hover:text-[#1A5C3A] transition" />
                 </Link>
+              </div> {/* AQUÍ ESTÁ EL CIERRE QUE FALTABA */}
+            </div> {/* Y AQUÍ EL OTRO CIERRE QUE FALTABA */}
 
             {/* TARJETA DE SOPORTE */}
             <div className="bg-[#0A1E3D] rounded-3xl p-6 text-white relative overflow-hidden">
