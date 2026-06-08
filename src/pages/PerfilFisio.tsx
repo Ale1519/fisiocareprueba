@@ -11,10 +11,10 @@ export default function PerfilFisio() {
   const [guardando, setGuardando] = useState(false);
   const [mensaje, setMensaje] = useState<{ tipo: 'exito' | 'error', texto: string } | null>(null);
 
-  // Estados del formulario
+  // Estados del formulario (Coinciden con tu tabla fisioterapeutas)
   const [nombres, setNombres] = useState('');
   const [apellidos, setApellidos] = useState('');
-  const [sobreMi, setSobreMi] = useState('');
+  const [bio, setBio] = useState(''); // <-- Ahora usa 'bio'
   const [precioSesion, setPrecioSesion] = useState<number | ''>('');
   const [ofreceDomicilio, setOfreceDomicilio] = useState(false);
   const [ofreceVideollamada, setOfreceVideollamada] = useState(false);
@@ -40,7 +40,7 @@ export default function PerfilFisio() {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) return;
 
-        // 1. Cargar Catálogos (Distritos y Especialidades de tu tabla)
+        // 1. Cargar Catálogos (Distritos y Especialidades)
         const [resDistritos, resEspecialidades] = await Promise.all([
           supabase.from('distritos').select('id, nombre').order('nombre'),
           supabase.from('especialidades').select('id, nombre').order('nombre')
@@ -49,8 +49,8 @@ export default function PerfilFisio() {
         if (resDistritos.data) setListaDistritosBD(resDistritos.data);
         if (resEspecialidades.data) setListaEspecialidadesBD(resEspecialidades.data);
 
-        // 2. Cargar datos del fisio y sus tablas intermedias
-        const { data: fisio } = await supabase
+        // 2. Cargar datos del fisio y sus relaciones
+        const { data: fisio, error: errorFisio } = await supabase
           .from('fisioterapeutas')
           .select(`
             *,
@@ -60,13 +60,13 @@ export default function PerfilFisio() {
           .eq('id', user.id)
           .single();
 
+        if (errorFisio) throw errorFisio;
+
         if (fisio) {
+          // Asignación directa a las columnas reales de tu BD
           setNombres(fisio.nombres || '');
           setApellidos(fisio.apellidos || '');
-          
-          // OJO: Asegúrate de que la columna en Supabase se llame 'sobre_mi', 'biografia' o 'experiencia'
-          setSobreMi(fisio.sobre_mi || fisio.biografia || fisio.experiencia || '');
-          
+          setBio(fisio.bio || ''); // ¡Columna correcta!
           setPrecioSesion(fisio.precio_sesion || '');
           setOfreceDomicilio(fisio.ofrece_domicilio || false);
           setOfreceVideollamada(fisio.ofrece_videollamada || false);
@@ -116,13 +116,13 @@ export default function PerfilFisio() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("No hay sesión activa");
 
-      // 1. Actualizar tabla principal
+      // 1. Actualizar tabla principal (Sin incluir 'especialidad' porque no existe ahí)
       const { error: errorFisio } = await supabase
         .from('fisioterapeutas')
         .update({
           nombres,
           apellidos,
-          sobre_mi: sobreMi, // <-- Ojo: Debe coincidir con el nombre de tu columna en Supabase
+          bio, // <-- Se guarda directo en tu columna bio
           precio_sesion: precioSesion === '' ? null : Number(precioSesion),
           ofrece_domicilio: ofreceDomicilio,
           ofrece_videollamada: ofreceVideollamada
@@ -131,7 +131,7 @@ export default function PerfilFisio() {
 
       if (errorFisio) throw errorFisio;
 
-      // 2. Actualizar Distritos
+      // 2. Lógica para Distritos: Borrar antiguos e insertar la nueva selección
       await supabase.from('fisioterapeuta_distritos').delete().eq('fisioterapeuta_id', user.id);
       if (distritosSeleccionados.length > 0) {
         await supabase.from('fisioterapeuta_distritos').insert(
@@ -139,7 +139,7 @@ export default function PerfilFisio() {
         );
       }
 
-      // 3. Actualizar Especialidades
+      // 3. Lógica para Especialidades: Borrar antiguas e insertar la nueva selección
       await supabase.from('fisioterapeuta_especialidades').delete().eq('fisioterapeuta_id', user.id);
       if (especialidadesSeleccionadas.length > 0) {
         await supabase.from('fisioterapeuta_especialidades').insert(
@@ -251,7 +251,7 @@ export default function PerfilFisio() {
                       <AlignLeft className="h-4 w-4 text-slate-400" /> Sobre ti (Biografía)
                     </label>
                     <textarea
-                      rows={5} value={sobreMi} onChange={(e) => setSobreMi(e.target.value)} placeholder="Cuéntale a tus pacientes sobre tu experiencia, tu enfoque de tratamiento..."
+                      rows={5} value={bio} onChange={(e) => setBio(e.target.value)} placeholder="Cuéntale a tus pacientes sobre tu experiencia, tu enfoque de tratamiento..."
                       className="w-full bg-slate-50 border border-slate-200 p-4 rounded-xl text-sm focus:outline-none focus:border-[#1A5C3A] focus:bg-white transition resize-none"
                     />
                   </div>
