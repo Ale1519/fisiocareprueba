@@ -201,10 +201,7 @@ export default function Landing() {
                 <h3 className="font-display text-2xl font-semibold mb-2">¿Eres fisioterapeuta?</h3>
                 <p className="text-emerald-200 text-sm font-light">Crece tu consulta con pacientes que te buscan.</p>
               </div>
-              <button 
-                onClick={() => navigate('/seleccion-registro')} 
-                className="relative z-10 bg-white text-[#1A5C3A] font-semibold px-6 py-3 rounded-xl text-sm mt-8 shadow-sm hover:bg-slate-50 transition w-full sm:w-max"
-              >
+              <button className="relative z-10 bg-white text-[#1A5C3A] font-semibold px-6 py-3 rounded-xl text-sm mt-8 shadow-sm hover:bg-slate-50 transition w-full sm:w-max">
                 Quiero registrarme
               </button>
             </div>
