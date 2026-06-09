@@ -44,13 +44,13 @@ export default function Landing() {
             {/* BOTONES HERO */}
             <div className="flex flex-col sm:flex-row items-center gap-3 pt-2">
               <button 
-                onClick={() => navigate('/login')} 
+                onClick={() => navigate('/registro-paciente')} 
                 className="w-full sm:w-auto flex items-center justify-center gap-2 px-7 py-3.5 rounded-xl bg-[#0A1E3D] text-white font-medium transition hover:bg-[#1E3A6E]"
               >
                 Soy paciente <ArrowRight className="h-4 w-4" />
               </button>
               <button 
-                onClick={() => navigate('/login')} 
+                onClick={() => navigate('/registro-fisio')} 
                 className="w-full sm:w-auto flex items-center justify-center gap-2 px-7 py-3.5 rounded-xl border border-slate-300 text-slate-700 font-medium transition hover:bg-slate-50"
               >
                 Soy fisioterapeuta <ArrowRight className="h-4 w-4" />
@@ -203,7 +203,7 @@ export default function Landing() {
                 <p className="text-emerald-200 text-sm font-light">Crece tu consulta con pacientes que te buscan.</p>
               </div>
               <button 
-                onClick={() => navigate('/seleccion-registro')} 
+                onClick={() => navigate('/registro-fisio')} 
                 className="relative z-10 bg-white text-[#1A5C3A] font-semibold px-6 py-3 rounded-xl text-sm mt-8 shadow-sm hover:bg-slate-50 transition w-full sm:w-max"
               >
                 Quiero registrarme
