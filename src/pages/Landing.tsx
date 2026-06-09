@@ -40,17 +40,17 @@ export default function Landing() {
               Reserva sesiones a domicilio o por videollamada con profesionales colegiados. Recupérate con confianza, en tus tiempos.
             </p>
 
-            {/* BOTONES HERO ACTUALIZADOS PARA MÓVIL */}
+            {/* BOTONES HERO */}
             <div className="flex flex-col sm:flex-row items-center gap-3 pt-2">
               <button 
                 onClick={() => navigate('/login')} 
-                className="btn-primary w-full sm:w-auto flex items-center justify-center gap-2 px-7 py-3.5 rounded-xl bg-[#0A1E3D] text-white font-medium transition hover:bg-[#1E3A6E]"
+                className="w-full sm:w-auto flex items-center justify-center gap-2 px-7 py-3.5 rounded-xl bg-[#0A1E3D] text-white font-medium transition hover:bg-[#1E3A6E]"
               >
                 Soy paciente <ArrowRight className="h-4 w-4" />
               </button>
               <button 
                 onClick={() => navigate('/login')} 
-                className="btn-outline w-full sm:w-auto flex items-center justify-center gap-2 px-7 py-3.5 rounded-xl border border-slate-300 text-slate-700 font-medium transition hover:bg-slate-50"
+                className="w-full sm:w-auto flex items-center justify-center gap-2 px-7 py-3.5 rounded-xl border border-slate-300 text-slate-700 font-medium transition hover:bg-slate-50"
               >
                 Soy fisioterapeuta <ArrowRight className="h-4 w-4" />
               </button>
@@ -81,12 +81,12 @@ export default function Landing() {
               <img
                 src="https://images.unsplash.com/photo-1576091160550-2173dba999ef?auto=format&fit=crop&w=900&q=80"
                 alt="Sesión de fisioterapia"
-                className="hero-img w-full h-full object-cover"
+                className="w-full h-full object-cover"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-[#0A1E3D]/30 to-transparent" />
             </div>
 
-            {/* Floating card adaptada para móvil */}
+            {/* Floating card */}
             <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 md:bottom-6 md:left-[-2rem] md:translate-x-0 bg-white rounded-2xl shadow-xl border border-slate-100 px-4 py-3 sm:px-5 sm:py-4 flex items-center gap-3 w-[90%] max-w-[260px] sm:max-w-[230px]">
               <div className="bg-[#EBF5FF] p-2 sm:p-2.5 rounded-xl shrink-0">
                 <Calendar className="h-5 w-5 text-[#2563EB]" />
@@ -131,7 +131,7 @@ export default function Landing() {
                 color: 'bg-[#FEF3F2] text-[#E03B2A]',
               },
             ].map(({ icon, title, desc, color }) => (
-              <div key={title} className="card-lift bg-white p-6 sm:p-8 rounded-[1.5rem] border border-slate-100 shadow-sm hover:shadow-md transition duration-300 space-y-4 sm:space-y-5">
+              <div key={title} className="bg-white p-6 sm:p-8 rounded-[1.5rem] border border-slate-100 shadow-sm hover:shadow-md transition duration-300 space-y-4 sm:space-y-5">
                 <div className={h-12 w-12 rounded-2xl flex items-center justify-center ${color}}>
                   {icon}
                 </div>
@@ -160,7 +160,7 @@ export default function Landing() {
               { num: '2', icon: <UserCheck className="h-6 w-6" />, title: 'Elige y agenda', desc: 'Revisa perfiles, reseñas y reserva el horario que prefieras.' },
               { num: '3', icon: <Calendar className="h-6 w-6" />, title: 'Recibe tu sesión', desc: 'Paga seguro con Yape o tarjeta y empieza tu recuperación.' },
             ].map(({ num, icon, title, desc }) => (
-              <div key={num} className="step-card bg-white rounded-[1.5rem] px-6 pt-10 pb-8 flex flex-col items-center justify-center min-h-[190px] relative shadow-sm">
+              <div key={num} className="bg-white rounded-[1.5rem] px-6 pt-10 pb-8 flex flex-col items-center justify-center min-h-[190px] relative shadow-sm">
                 <div className="absolute -top-5 left-1/2 -translate-x-1/2 h-10 w-10 bg-[#1E3A6E] text-white rounded-full flex items-center justify-center font-bold text-sm shadow-md border-4 border-[#F2F6FA]">
                   {num}
                 </div>
@@ -201,7 +201,10 @@ export default function Landing() {
                 <h3 className="font-display text-2xl font-semibold mb-2">¿Eres fisioterapeuta?</h3>
                 <p className="text-emerald-200 text-sm font-light">Crece tu consulta con pacientes que te buscan.</p>
               </div>
-              <button className="relative z-10 bg-white text-[#1A5C3A] font-semibold px-6 py-3 rounded-xl text-sm mt-8 shadow-sm hover:bg-slate-50 transition w-full sm:w-max">
+              <button 
+                onClick={() => navigate('/seleccion-registro')} 
+                className="relative z-10 bg-white text-[#1A5C3A] font-semibold px-6 py-3 rounded-xl text-sm mt-8 shadow-sm hover:bg-slate-50 transition w-full sm:w-max"
+              >
                 Quiero registrarme
               </button>
             </div>
@@ -262,5 +265,4 @@ export default function Landing() {
 
     </div>
   );
-}
 }
