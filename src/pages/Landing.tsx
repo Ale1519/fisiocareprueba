@@ -133,7 +133,7 @@ export default function Landing() {
               },
             ].map(({ icon, title, desc, color }, idx) => (
               <div key={idx} className="bg-white p-6 sm:p-8 rounded-[1.5rem] border border-slate-100 shadow-sm hover:shadow-md transition duration-300 space-y-4 sm:space-y-5">
-                <div className={h-12 w-12 rounded-2xl flex items-center justify-center ${color}}>
+                <div className={`h-12 w-12 rounded-2xl flex items-center justify-center ${color}`}>
                   {icon}
                 </div>
                 <div>
@@ -260,7 +260,7 @@ export default function Landing() {
 
         <div className="max-w-7xl mx-auto px-5 sm:px-8 border-t border-slate-800 pt-6 flex flex-col sm:flex-row items-center justify-between text-[11px] text-slate-600 gap-3 text-center sm:text-left">
           <p>© 2026 FisioCare. Todos los derechos reservados.</p>
-          <p>Hecho con ♥️ en Lima</p>
+          <p>Hecho con ♥ en Lima</p>
         </div>
       </footer>
 
