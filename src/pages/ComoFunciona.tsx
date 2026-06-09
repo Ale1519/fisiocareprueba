@@ -28,13 +28,12 @@ const categorias = [
     id: 'citas', icon: CalendarCheck, label: 'Citas y reservas', bg: 'bg-[#FFF5F5]', fg: 'text-[#E53E3E]',
     preguntas: [
       { q: '¿Cómo reagendo una cita?', a: 'Desde "Mis citas" → selecciona la sesión → "Reprogramar". Sin costo hasta 12h antes.' },
-      { q: '¿Recibiré recordatorios?', a: 'Sí, enviamos recordatorios 24h antes por WhatsApp y correo.' },
+      { q: '¿Recibiré recordatorios?', a: 'Sí, enviamos recordatorios 24h antes.' },
     ],
   },
   {
     id: 'videollamada', icon: Video, label: 'Videollamadas', bg: 'bg-[#FAF5FF]', fg: 'text-[#805AD5]',
     preguntas: [
-      { q: '¿Qué aplicación necesito?', a: 'Ninguna. Las videollamadas funcionan directamente en tu navegador.' },
       { q: '¿Las sesiones se graban?', a: 'No, son sesiones totalmente privadas y no se almacenan.' },
     ],
   },
