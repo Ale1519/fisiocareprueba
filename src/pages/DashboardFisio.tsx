@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom'; 
+import { Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { 
   Calendar, Clock, MapPin, Video, Users, DollarSign, 
-  TrendingUp, CheckCircle, FileText, Settings, ChevronRight, UserCircle 
+  TrendingUp, CheckCircle, FileText, Settings, ChevronRight, UserCircle,
+  MessageSquare
 } from 'lucide-react';
 
-// ... el resto de tu código sigue igual
 export default function DashboardFisio() {
   const [fisio, setFisio] = useState<any>(null);
   const [citasHoy, setCitasHoy] = useState<any[]>([]);
@@ -80,7 +80,7 @@ export default function DashboardFisio() {
       setProximasCitas(prev => prev.filter(c => c.id !== citaId));
       
     } catch (error) {
-      console.error(`Error al marcar como ${nuevoEstado}:`, error);
+      console.error(Error al marcar como ${nuevoEstado}:, error);
       alert('Hubo un error al actualizar la cita. Inténtalo de nuevo.');
     }
   };
@@ -122,7 +122,7 @@ export default function DashboardFisio() {
           {[
             { label: 'Pacientes Hoy', value: citasHoy.length.toString(), icon: Users, color: 'text-sky-600', bg: 'bg-sky-50' },
             { label: 'Citas Próximas', value: proximasCitas.length.toString(), icon: Calendar, color: 'text-indigo-600', bg: 'bg-indigo-50' },
-            { label: 'Ingresos Estimados', value: `S/ ${(citasHoy.length + proximasCitas.length) * (fisio?.precio_sesion || 0)}`, icon: DollarSign, color: 'text-emerald-600', bg: 'bg-emerald-50' },
+            { label: 'Ingresos Estimados', value: S/ ${(citasHoy.length + proximasCitas.length) * (fisio?.precio_sesion || 0)}, icon: DollarSign, color: 'text-emerald-600', bg: 'bg-emerald-50' },
             { label: 'Tasa de Retención', value: '85%', icon: TrendingUp, color: 'text-amber-600', bg: 'bg-amber-50' },
           ].map((stat, i) => (
             <div key={i} className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100 hover:shadow-md transition">
@@ -131,8 +131,8 @@ export default function DashboardFisio() {
                   <p className="text-sm font-semibold text-slate-500">{stat.label}</p>
                   <p className="text-2xl font-extrabold text-[#0A1E3D] mt-1">{stat.value}</p>
                 </div>
-                <div className={`p-3 rounded-xl ${stat.bg}`}>
-                  <stat.icon className={`h-6 w-6 ${stat.color}`} />
+                <div className={p-3 rounded-xl ${stat.bg}}>
+                  <stat.icon className={h-6 w-6 ${stat.color}} />
                 </div>
               </div>
             </div>
@@ -267,6 +267,22 @@ export default function DashboardFisio() {
                   <div className="flex items-center gap-3">
                     <UserCircle className="h-4 w-4 text-slate-400 group-hover:text-[#1A5C3A]" />
                     <span className="text-sm font-bold text-slate-600 group-hover:text-[#0A1E3D]">Editar Mi Perfil</span>
+                  </div>
+                  <ChevronRight className="h-4 w-4 text-slate-300" />
+                </Link>
+                {/* 🌟 Botón Mensajería */}
+                <Link to="/mensajeria" className="w-full flex items-center justify-between p-3.5 rounded-xl border border-slate-100 hover:border-[#1A5C3A] hover:bg-[#F8FAF9] transition group">
+                  <div className="flex items-center gap-3">
+                    <MessageSquare className="h-4 w-4 text-slate-400 group-hover:text-[#1A5C3A]" />
+                    <span className="text-sm font-bold text-slate-600 group-hover:text-[#0A1E3D]">Mensajería</span>
+                  </div>
+                  <ChevronRight className="h-4 w-4 text-slate-300" />
+                </Link>
+                {/* 🌟 Botón Calendario */}
+                <Link to="/calendario" className="w-full flex items-center justify-between p-3.5 rounded-xl border border-slate-100 hover:border-[#1A5C3A] hover:bg-[#F8FAF9] transition group">
+                  <div className="flex items-center gap-3">
+                    <Calendar className="h-4 w-4 text-slate-400 group-hover:text-[#1A5C3A]" />
+                    <span className="text-sm font-bold text-slate-600 group-hover:text-[#0A1E3D]">Calendario de citas</span>
                   </div>
                   <ChevronRight className="h-4 w-4 text-slate-300" />
                 </Link>
