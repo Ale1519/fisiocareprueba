@@ -132,7 +132,7 @@ export default function Landing() {
               },
             ].map(({ icon, title, desc, color }) => (
               <div key={title} className="card-lift bg-white p-6 sm:p-8 rounded-[1.5rem] border border-slate-100 shadow-sm hover:shadow-md transition duration-300 space-y-4 sm:space-y-5">
-                <div className={`h-12 w-12 rounded-2xl flex items-center justify-center ${color}`}>
+                <div className={h-12 w-12 rounded-2xl flex items-center justify-center ${color}}>
                   {icon}
                 </div>
                 <div>
@@ -201,7 +201,10 @@ export default function Landing() {
                 <h3 className="font-display text-2xl font-semibold mb-2">¿Eres fisioterapeuta?</h3>
                 <p className="text-emerald-200 text-sm font-light">Crece tu consulta con pacientes que te buscan.</p>
               </div>
-              <button className="relative z-10 bg-white text-[#1A5C3A] font-semibold px-6 py-3 rounded-xl text-sm mt-8 shadow-sm hover:bg-slate-50 transition w-full sm:w-max">
+              <button 
+                onClick={() => navigate('/seleccion-registro')} 
+                className="relative z-10 bg-white text-[#1A5C3A] font-semibold px-6 py-3 rounded-xl text-sm mt-8 shadow-sm hover:bg-slate-50 transition w-full sm:w-max"
+              >
                 Quiero registrarme
               </button>
             </div>
@@ -256,7 +259,7 @@ export default function Landing() {
 
         <div className="max-w-7xl mx-auto px-5 sm:px-8 border-t border-slate-800 pt-6 flex flex-col sm:flex-row items-center justify-between text-[11px] text-slate-600 gap-3 text-center sm:text-left">
           <p>© 2026 FisioCare. Todos los derechos reservados.</p>
-          <p>Hecho con ♥ en Lima</p>
+          <p>Hecho con ♥️ en Lima</p>
         </div>
       </footer>
 
