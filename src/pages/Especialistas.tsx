@@ -28,7 +28,7 @@ export default function Especialistas() {
   const [busqueda, setBusqueda] = useState('');
   const [modalidad, setModalidad] = useState('todos');
   const [distrito, setDistrito] = useState('todos');
-  const [especialidad, setEspecialidad] = useState('todas'); // <- NUEVO FILTRO
+  const [especialidad, setEspecialidad] = useState('todas'); 
   const [precioMax, setPrecioMax] = useState(200);
   
   // === EFECTO PARA CARGAR DATOS DE SUPABASE ===
@@ -44,7 +44,7 @@ export default function Especialistas() {
       const { data: espData } = await supabase.from('especialidades').select('*');
       if (espData) setEspecialidadesDB(espData);
 
-      // 3. Traer fisioterapeutas con sus relaciones (Joins)
+      // 3. Traer fisioterapeutas con sus relaciones y citas
       const { data: fisios, error } = await supabase
         .from('fisioterapeutas')
         .select(`
@@ -56,20 +56,25 @@ export default function Especialistas() {
           ofrece_domicilio,
           ofrece_videollamada,
           fisioterapeuta_especialidades ( especialidades ( nombre ) ),
-          fisioterapeuta_distritos ( distritos ( nombre ) )
+          fisioterapeuta_distritos ( distritos ( nombre ) ),
+          citas ( id, estado )
         `);
 
       if (fisios) {
-        // Aplanamos la data para que sea fácil de filtrar y renderizar
-        const mapeados = fisios.map((f: any) => ({
-          ...f,
-          nombre_completo: `${f.nombres} ${f.apellidos}`,
-          especialidades: f.fisioterapeuta_especialidades?.map((fe: any) => fe.especialidades?.nombre) || [],
-          distritos: f.fisioterapeuta_distritos?.map((fd: any) => fd.distritos?.nombre) || [],
-          // Mockeo temporal de reseñas hasta que crees la tabla de valoraciones
-          rating: 5.0, 
-          resenas: Math.floor(Math.random() * 50) + 10 
-        }));
+        const mapeados = fisios.map((f: any) => {
+          // Contamos las citas que ya fueron completadas por este fisio
+          const citasCompletadas = f.citas?.filter((c: any) => c.estado === 'completada').length || 0;
+          
+          return {
+            ...f,
+            nombre_completo: `${f.nombres} ${f.apellidos}`,
+            especialidades: f.fisioterapeuta_especialidades?.map((fe: any) => fe.especialidades?.nombre) || [],
+            distritos: f.fisioterapeuta_distritos?.map((fd: any) => fd.distritos?.nombre) || [],
+            rating: 5.0, 
+            resenas: Math.floor(Math.random() * 50) + 10,
+            total_citas: citasCompletadas
+          };
+        });
         setFisiosData(mapeados);
       } else if (error) {
         console.error("Error cargando fisios:", error);
@@ -82,25 +87,18 @@ export default function Especialistas() {
 
   // === LÓGICA DE FILTRADO EN TIEMPO REAL ===
   const especialistasFiltrados = fisiosData.filter(fisio => {
-    // 1. Búsqueda por texto (Nombre o especialidad)
     const texto = busqueda.toLowerCase();
     const coincideTexto = 
       fisio.nombre_completo.toLowerCase().includes(texto) || 
       fisio.especialidades.some((e: string) => e.toLowerCase().includes(texto));
 
-    // 2. Modalidad de atención
     let coincideModalidad = true;
     if (modalidad === 'Domicilio') coincideModalidad = fisio.ofrece_domicilio;
     if (modalidad === 'Online') coincideModalidad = fisio.ofrece_videollamada;
     if (modalidad === 'ambos') coincideModalidad = fisio.ofrece_domicilio && fisio.ofrece_videollamada;
 
-    // 3. Distrito
     const coincideDistrito = distrito === 'todos' || fisio.distritos.includes(distrito);
-
-    // 4. Especialidad (NUEVO FILTRO)
     const coincideEspecialidad = especialidad === 'todas' || fisio.especialidades.includes(especialidad);
-
-    // 5. Precio Máximo
     const coincidePrecio = (fisio.precio_sesion || 0) <= precioMax;
 
     return coincideTexto && coincideModalidad && coincideDistrito && coincideEspecialidad && coincidePrecio;
@@ -134,7 +132,7 @@ export default function Especialistas() {
           </div>
         </div>
 
-        {/* BUSCADOR EN FORMA DE PÍLDORA */}
+        {/* BUSCADOR */}
         <div className="relative bg-white rounded-full shadow-sm border border-slate-200/60 p-1.5 transition-all focus-within:border-blue-400 focus-within:shadow-md focus-within:shadow-blue-50/40">
           <div className="flex items-center pl-5">
             <Search className="h-5 w-5 text-slate-400 flex-shrink-0" />
@@ -148,12 +146,11 @@ export default function Especialistas() {
           </div>
         </div>
 
-        {/* CONTENEDOR CONTENIDO ASIDE + GRID */}
+        {/* CONTENEDOR ASIDE + GRID */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start relative">
         
-          {/* BARRA LATERAL IZQUIERDA (STICKY) */}
+          {/* BARRA LATERAL IZQUIERDA */}
           <aside className="lg:col-span-3 bg-white border border-slate-200/70 rounded-2xl p-6 shadow-sm space-y-6 sticky top-[88px] max-h-[calc(100vh-110px)] overflow-y-auto scrollbar-thin">
-        
             <div className="flex items-center gap-2 text-[#0A1E3D] pb-3 border-b border-slate-100">
               <SlidersHorizontal className="h-4 w-4 text-blue-600" />
               <h2 className="text-xs font-bold tracking-wider uppercase text-slate-700">Filtros de Búsqueda</h2>
@@ -185,7 +182,7 @@ export default function Especialistas() {
               </div>
             </div>
 
-            {/* Especialidad (NUEVO FILTRO) */}
+            {/* Especialidad */}
             <div className="space-y-2.5">
               <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Especialidad Clínica</label>
               <div className="relative">
@@ -196,9 +193,7 @@ export default function Especialistas() {
                 >
                   <option value="todas">Todas las especialidades</option>
                   {especialidadesDB.map((esp: any) => (
-                    <option key={esp.id} value={esp.nombre}>
-                      {esp.nombre}
-                    </option>
+                    <option key={esp.id} value={esp.nombre}>{esp.nombre}</option>
                   ))}
                 </select>
                 <Activity className="absolute right-3.5 top-3.5 h-3.5 w-3.5 text-slate-400 pointer-events-none" />
@@ -216,16 +211,14 @@ export default function Especialistas() {
                 >
                   <option value="todos">Todos los distritos</option>
                   {distritosDB.map((dist: any) => (
-                    <option key={dist.id} value={dist.nombre}>
-                      {dist.nombre}
-                    </option>
+                    <option key={dist.id} value={dist.nombre}>{dist.nombre}</option>
                   ))}
                 </select>
                 <MapPin className="absolute right-3.5 top-3.5 h-3.5 w-3.5 text-slate-400 pointer-events-none" />
               </div>
             </div>
 
-            {/* RANGO DE PRECIOS CON TIRADOR REDONDO */}
+            {/* Rango de Precios */}
             <div className="space-y-3">
               <div className="flex justify-between items-center text-[11px] font-bold text-slate-400 uppercase tracking-wider">
                 <span>Precio máximo</span>
@@ -241,8 +234,7 @@ export default function Especialistas() {
               />
             </div>
 
-            {/* Limpiador global */}
-           <button
+            <button
               onClick={() => { setBusqueda(''); setModalidad('todos'); setEspecialidad('todas'); setDistrito('todos'); setPrecioMax(250); }}
               className="w-full bg-slate-50 hover:bg-red-50 border border-slate-200 hover:border-red-200 text-slate-500 hover:text-red-600 py-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5"
             >
@@ -250,7 +242,7 @@ export default function Especialistas() {
             </button>
           </aside>
 
-          {/* PARTE DERECHA: GRILLA DE TARJETAS HORIZONTALES */}
+          {/* PARTE DERECHA: GRILLA DE TARJETAS */}
           <div className="lg:col-span-9 grid grid-cols-1 md:grid-cols-2 gap-6">
             {loading ? (
                <div className="col-span-full py-12 flex justify-center">
@@ -267,7 +259,7 @@ export default function Especialistas() {
                         <User className="h-8 w-8 stroke-[1.2]" />
                       </div>
                     
-                      <div className="space-y-0.5">
+                      <div className="space-y-0.5 w-full">
                         <h3 className="font-body text-base font-bold text-[#0A1E3D] leading-tight">
                           {fisio.nombre_completo}
                         </h3>
@@ -279,10 +271,18 @@ export default function Especialistas() {
                         <p className="text-[10px] text-slate-400 font-medium pt-1">
                           Colegiatura CFF verificada • {fisio.colegiatura || 'En proceso'}
                         </p>
-                        <div className="flex items-center gap-1 pt-1">
-                          <Star className="h-3.5 w-3.5 text-amber-400 fill-amber-400" />
-                          <span className="text-xs font-bold text-slate-700">{fisio.rating.toFixed(1)}</span>
-                          <span className="text-slate-400 text-xs font-light">({fisio.resenas})</span>
+                        
+                        {/* 🚀 NUEVO: Valoración y Cantidad de Citas Completadas */}
+                        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 pt-1 text-xs">
+                          <div className="flex items-center gap-1">
+                            <Star className="h-3.5 w-3.5 text-amber-400 fill-amber-400" />
+                            <span className="font-bold text-slate-700">{fisio.rating.toFixed(1)}</span>
+                            <span className="text-slate-400 font-light">({fisio.resenas})</span>
+                          </div>
+                          <span className="text-slate-300">|</span>
+                          <span className="font-semibold text-[#1A5C3A]">
+                            {fisio.total_citas} {fisio.total_citas === 1 ? 'cita realizada' : 'citas realizadas'}
+                          </span>
                         </div>
                       </div>
 
@@ -301,7 +301,7 @@ export default function Especialistas() {
                     </div>
                   </div>
 
-                  {/* Fila Horizontal Intermedia e Icono de Escudo */}
+                  {/* Fila Zonas y Modalidades */}
                   <div className="mt-5 pt-4 border-t border-slate-100 space-y-4">
                     <div className="flex items-center gap-3 text-slate-500 text-xs pl-1">
                       <div className="h-6 w-6 bg-[#E8F5EE] text-[#1A6645] rounded-full flex items-center justify-center flex-shrink-0">
@@ -329,7 +329,7 @@ export default function Especialistas() {
                       </div>
                     </div>
 
-                    {/* BOTÓN CON LÓGICA DE SESIÓN */}
+                    {/* BOTONES ACCIÓN */}
                     <div className="flex gap-2.5">
                       <button 
                         onClick={() => handleVerPerfil(fisio.id)}
@@ -355,9 +355,9 @@ export default function Especialistas() {
         </div>
       </main>
 
-      {/* FOOTER CORPORATIVO */}
+      {/* FOOTER */}
       <footer className="bg-[#0A1E3D] text-slate-400 pt-16 pb-8 mt-20 w-full">
-         {/* ... El footer se mantiene exactamente igual ... */}
+         {/* ... */}
       </footer>
     </div>
   );
