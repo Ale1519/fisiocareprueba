@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { 
   Calendar, Clock, MapPin, Video, User, Plus, FileText, ChevronRight, 
-  X, AlertTriangle, CheckCircle2
+  X, AlertTriangle, CheckCircle2, MessageSquare
 } from 'lucide-react';
 
 export default function DashboardPaciente() {
@@ -291,6 +291,17 @@ export default function DashboardPaciente() {
                       <User className="h-4 w-4 text-slate-500 group-hover:text-[#1A5C3A] transition" />
                     </div>
                     <span className="text-sm font-bold text-slate-600 group-hover:text-[#0A1E3D] transition">Mi perfil y datos</span>
+                  </div>
+                  <ChevronRight className="h-4 w-4 text-slate-300 group-hover:text-[#1A5C3A] transition" />
+                </Link>
+
+                {/* NUEVO BOTÓN DE MENSAJERÍA */}
+                <Link to="/mensajeria" className="w-full flex items-center justify-between p-4 rounded-xl border border-slate-100 hover:border-[#1A5C3A] hover:bg-[#F8FAF9] transition group">
+                  <div className="flex items-center gap-3">
+                    <div className="bg-slate-50 group-hover:bg-white p-2 rounded-lg transition">
+                      <MessageSquare className="h-4 w-4 text-slate-500 group-hover:text-[#1A5C3A] transition" />
+                    </div>
+                    <span className="text-sm font-bold text-slate-600 group-hover:text-[#0A1E3D] transition">Mensajes</span>
                   </div>
                   <ChevronRight className="h-4 w-4 text-slate-300 group-hover:text-[#1A5C3A] transition" />
                 </Link>
