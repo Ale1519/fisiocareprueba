@@ -1,10 +1,12 @@
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabase';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { ArrowLeft, Send, User, Search, Clock } from 'lucide-react';
 
 export default function Mensajeria() {
   const navigate = useNavigate();
+  const location = useLocation(); // 🚀 NUEVO: Para recibir datos de otra pantalla
+  
   const [usuarioActual, setUsuarioActual] = useState<any>(null);
   const [rol, setRol] = useState<'paciente' | 'fisio' | null>(null);
   const [contactos, setContactos] = useState<any[]>([]);
@@ -34,6 +36,28 @@ export default function Mensajeria() {
     initData();
   }, [navigate]);
 
+  // 🚀 NUEVO: Escuchar si venimos de la pantalla "Especialistas" con un contacto nuevo
+  useEffect(() => {
+    if (location.state?.nuevoContacto) {
+      const nuevo = location.state.nuevoContacto;
+      
+      // Agregarlo a la lista de contactos si no estaba ya
+      setContactos(prev => {
+        const existe = prev.find(c => c.id === nuevo.id);
+        if (!existe) {
+          return [nuevo, ...prev]; // Lo pone al inicio de la lista
+        }
+        return prev;
+      });
+      
+      // Abrir el chat automáticamente
+      setContactoActivo(nuevo);
+      
+      // Limpiar el estado para que no se quede pegado si recarga la página
+      window.history.replaceState({}, document.title);
+    }
+  }, [location.state]);
+
   // 2. Cargar contactos basados en las citas agendadas/completadas
   const cargarContactos = async (userId: string, userRol: string) => {
     try {
@@ -47,7 +71,6 @@ export default function Mensajeria() {
         .neq('estado', 'cancelada');
 
       if (citas) {
-        // Extraer usuarios únicos
         const contactosUnicos = new Map();
         citas.forEach((cita: any) => {
           const persona = userRol === 'fisio' ? cita.pacientes : cita.fisioterapeutas;
@@ -58,7 +81,16 @@ export default function Mensajeria() {
             });
           }
         });
-        setContactos(Array.from(contactosUnicos.values()));
+        
+        // Solo actualizamos si no viene uno nuevo desde el "state" para no borrarlo
+        setContactos(prev => {
+          const nuevos = Array.from(contactosUnicos.values());
+          const combinados = [...prev];
+          nuevos.forEach(n => {
+            if (!combinados.find(c => c.id === n.id)) combinados.push(n);
+          });
+          return combinados;
+        });
       }
     } catch (error) {
       console.error("Error cargando contactos:", error);
@@ -73,7 +105,6 @@ export default function Mensajeria() {
       const { data } = await supabase
         .from('mensajes')
         .select('*')
-        // ADAPTADO A TU BASE DE DATOS: remitente_id y destinatario_id
         .or(`and(remitente_id.eq.${usuarioActual.id},destinatario_id.eq.${contactoActivo.id}),and(remitente_id.eq.${contactoActivo.id},destinatario_id.eq.${usuarioActual.id})`)
         .order('created_at', { ascending: true });
       
@@ -83,13 +114,12 @@ export default function Mensajeria() {
 
     fetchMensajes();
 
-    // 🚀 MAGIA REALTIME: Escuchar nuevos mensajes en vivo
     const channel = supabase.channel('chat_en_vivo')
       .on('postgres_changes', { 
         event: 'INSERT', 
         schema: 'public', 
         table: 'mensajes',
-        filter: `remitente_id=eq.${contactoActivo.id}` // Escuchar si el contacto nos escribe
+        filter: `remitente_id=eq.${contactoActivo.id}`
       }, (payload) => {
         setMensajes((prev) => [...prev, payload.new]);
         scrollToBottom();
@@ -101,7 +131,6 @@ export default function Mensajeria() {
     };
   }, [contactoActivo, usuarioActual]);
 
-  // Hacer scroll automático hacia abajo
   const scrollToBottom = () => {
     setTimeout(() => {
       mensajesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -113,7 +142,6 @@ export default function Mensajeria() {
     e.preventDefault();
     if (!nuevoMensaje.trim() || !contactoActivo || !usuarioActual) return;
 
-    // ADAPTADO A TU BASE DE DATOS
     const mensajeTemp = {
       id: crypto.randomUUID(),
       remitente_id: usuarioActual.id,
@@ -122,12 +150,10 @@ export default function Mensajeria() {
       created_at: new Date().toISOString()
     };
 
-    // Actualización optimista en la UI
     setMensajes((prev) => [...prev, mensajeTemp]);
     setNuevoMensaje('');
     scrollToBottom();
 
-    // Guardar en Supabase
     await supabase.from('mensajes').insert([{
       remitente_id: usuarioActual.id,
       destinatario_id: contactoActivo.id,
@@ -135,7 +161,6 @@ export default function Mensajeria() {
     }]);
   };
 
-  // Formatear hora del mensaje
   const formatearHora = (isoString: string) => {
     const fecha = new Date(isoString);
     return fecha.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
@@ -143,7 +168,6 @@ export default function Mensajeria() {
 
   return (
     <div className="min-h-screen bg-[#F4F7FB] flex flex-col">
-      {/* HEADER TOP */}
       <div className="bg-white border-b border-slate-200 h-16 flex items-center px-4 sm:px-8 shrink-0 sticky top-0 z-10">
         <div className="max-w-7xl mx-auto w-full flex items-center">
           <Link 
@@ -156,10 +180,8 @@ export default function Mensajeria() {
         </div>
       </div>
 
-      {/* CONTENEDOR PRINCIPAL */}
       <div className="max-w-7xl mx-auto w-full flex-grow flex p-4 sm:p-8 gap-6 h-[calc(100vh-64px)]">
         
-        {/* COLUMNA IZQUIERDA: LISTA DE CONTACTOS */}
         <div className={`w-full md:w-80 bg-white rounded-3xl border border-slate-200 shadow-sm flex flex-col overflow-hidden shrink-0 ${contactoActivo ? 'hidden md:flex' : 'flex'}`}>
           <div className="p-5 border-b border-slate-100">
             <h2 className="font-bold text-[#0A1E3D] text-lg mb-4">Mis Conversaciones</h2>
@@ -196,13 +218,12 @@ export default function Mensajeria() {
               ))
             ) : (
               <div className="p-8 text-center text-slate-400 text-sm">
-                No tienes contactos aún. Agenda una cita para comenzar a chatear.
+                No tienes contactos aún.
               </div>
             )}
           </div>
         </div>
 
-        {/* COLUMNA DERECHA: ÁREA DE CHAT */}
         <div className={`flex-grow bg-white rounded-3xl border border-slate-200 shadow-sm flex flex-col overflow-hidden ${!contactoActivo ? 'hidden md:flex md:items-center md:justify-center bg-slate-50/50' : 'flex'}`}>
           
           {!contactoActivo ? (
@@ -215,7 +236,6 @@ export default function Mensajeria() {
             </div>
           ) : (
             <>
-              {/* HEADER DEL CHAT */}
               <div className="h-16 border-b border-slate-100 flex items-center px-6 shrink-0 justify-between bg-white">
                 <div className="flex items-center gap-3">
                   <button onClick={() => setContactoActivo(null)} className="md:hidden text-slate-400 hover:text-slate-600 mr-1">
@@ -235,7 +255,6 @@ export default function Mensajeria() {
                 </div>
               </div>
 
-              {/* HISTORIAL DE MENSAJES */}
               <div className="flex-grow overflow-y-auto p-6 space-y-4 bg-[#F8FAF9]">
                 {mensajes.length === 0 && (
                   <div className="text-center py-10">
@@ -263,7 +282,6 @@ export default function Mensajeria() {
                 <div ref={mensajesEndRef} />
               </div>
 
-              {/* INPUT DE MENSAJE */}
               <div className="p-4 bg-white border-t border-slate-100 shrink-0">
                 <form onSubmit={enviarMensaje} className="flex gap-2">
                   <input
