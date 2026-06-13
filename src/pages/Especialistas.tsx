@@ -113,6 +113,24 @@ export default function Especialistas() {
     }
   };
 
+  // 🚀 NUEVA LÓGICA: Manejar el clic en el botón de enviar mensaje
+  const handleMensaje = async (fisio: any) => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      navigate('/login');
+    } else {
+      // Navegamos a mensajería y pasamos los datos del fisio en el "state" de la ruta
+      navigate('/mensajeria', { 
+        state: { 
+          nuevoContacto: {
+            id: fisio.id,
+            nombre: fisio.nombre_completo
+          }
+        } 
+      });
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[#FAFAFA] text-slate-800 antialiased font-body flex flex-col justify-between">
       
@@ -272,7 +290,6 @@ export default function Especialistas() {
                           Colegiatura CFF verificada • {fisio.colegiatura || 'En proceso'}
                         </p>
                         
-                        {/* 🚀 NUEVO: Valoración y Cantidad de Citas Completadas */}
                         <div className="flex flex-wrap items-center gap-x-2 gap-y-1 pt-1 text-xs">
                           <div className="flex items-center gap-1">
                             <Star className="h-3.5 w-3.5 text-amber-400 fill-amber-400" />
@@ -337,7 +354,13 @@ export default function Especialistas() {
                       >
                         Ver perfil
                       </button>
-                      <button className="h-[42px] w-[42px] border border-slate-200 rounded-xl flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-50 transition flex-shrink-0">
+                      
+                      {/* 🚀 BOTÓN MODIFICADO PARA MANDAR MENSAJE */}
+                      <button 
+                        onClick={() => handleMensaje(fisio)}
+                        title="Enviar mensaje al especialista"
+                        className="h-[42px] w-[42px] border border-slate-200 rounded-xl flex items-center justify-center text-slate-400 hover:text-white hover:bg-[#1A5C3A] hover:border-[#1A5C3A] transition-all flex-shrink-0"
+                      >
                         <MessageSquare className="h-4 w-4" />
                       </button>
                     </div>
@@ -357,7 +380,7 @@ export default function Especialistas() {
 
       {/* FOOTER */}
       <footer className="bg-[#0A1E3D] text-slate-400 pt-16 pb-8 mt-20 w-full">
-         {/* ... */}
+         {/* ... El footer lo mantienes igual que antes ... */}
       </footer>
     </div>
   );
