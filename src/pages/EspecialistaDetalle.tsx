@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import {
   ArrowLeft,
@@ -16,6 +16,7 @@ import {
 
 export default function EspecialistaDetalle() {
   const { id } = useParams<{ id: string }>(); // Captura el ID de la URL
+  const navigate = useNavigate(); // 🚀 Para poder navegar al chat
   const [fisio, setFisio] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
@@ -49,6 +50,26 @@ export default function EspecialistaDetalle() {
 
     if (id) fetchFisio();
   }, [id]);
+
+  // 🚀 LÓGICA PARA EL BOTÓN DE MENSAJE
+  const handleMensaje = async () => {
+    if (!fisio) return;
+    
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      navigate('/login');
+    } else {
+      // Navegamos a mensajería y pasamos los datos del fisio en el "state" de la ruta
+      navigate('/mensajeria', { 
+        state: { 
+          nuevoContacto: {
+            id: fisio.id,
+            nombre: fisio.nombre_completo
+          }
+        } 
+      });
+    }
+  };
 
   if (loading) {
     return (
@@ -200,7 +221,11 @@ export default function EspecialistaDetalle() {
                 <Calendar className="h-5 w-5" /> Agendar Cita
               </Link>
               
-              <button className="w-full bg-slate-50 text-slate-700 border border-slate-200 py-4 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-slate-100 transition">
+              {/* 🚀 BOTÓN MODIFICADO PARA ENVIAR MENSAJE */}
+              <button 
+                onClick={handleMensaje}
+                className="w-full bg-slate-50 text-slate-700 border border-slate-200 py-4 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-slate-100 transition"
+              >
                 <MessageSquare className="h-5 w-5" /> Enviar Mensaje
               </button>
             </div>
