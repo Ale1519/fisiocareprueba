@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabase';
 import { Link, useNavigate } from 'react-router-dom';
 import { 
   ArrowLeft, Calendar as CalendarIcon, Clock, MapPin, 
-  Video, User, FileText, CheckCircle2, Save, AlertCircle 
+  Video, FileText, CheckCircle2, Save, AlertCircle 
 } from 'lucide-react';
 
 export default function Calendario() {
