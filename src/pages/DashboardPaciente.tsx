@@ -3,26 +3,28 @@ import { Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { 
   Calendar, Clock, MapPin, Video, User, Plus, FileText, ChevronRight, 
-  X, AlertTriangle, CheckCircle2, MessageSquare
+  X, AlertTriangle, CheckCircle2, MessageSquare, ChevronDown, ChevronUp
 } from 'lucide-react';
 
 export default function DashboardPaciente() {
   const [paciente, setPaciente] = useState<any>(null);
-  const [citasProgramadas, setCitasProgramadas] = useState<any[]>([]); // 🚀 AHORA ES UN ARREGLO
+  const [citasProgramadas, setCitasProgramadas] = useState<any[]>([]);
   const [historial, setHistorial] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  
+  // 🚀 NUEVO: Estado para controlar si mostramos 2 o todas las citas
+  const [mostrarTodasCitas, setMostrarTodasCitas] = useState(false);
 
   // === ESTADOS PARA EL MODAL DE ACCIÓN ===
   const [modalOpen, setModalOpen] = useState(false);
   const [pasoModal, setPasoModal] = useState<'menu' | 'cancelar' | 'reprogramar'>('menu');
   const [procesando, setProcesando] = useState(false);
-  const [citaSeleccionada, setCitaSeleccionada] = useState<any>(null); // 🚀 SABER QUÉ CITA EDITAMOS
+  const [citaSeleccionada, setCitaSeleccionada] = useState<any>(null);
   
   // Estados para reprogramar
   const [nuevaFecha, setNuevaFecha] = useState('');
   const [nuevaHora, setNuevaHora] = useState('');
 
-  // Horarios de ejemplo (Aquí puedes conectarlo a tu tabla de disponibilidad real)
   const horariosDisponibles = ['09:00', '10:00', '11:00', '12:00', '14:00', '15:00', '16:00', '17:00'];
 
   useEffect(() => {
@@ -34,7 +36,6 @@ export default function DashboardPaciente() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // 1. Traer datos del paciente
       const { data: dataPaciente } = await supabase
         .from('pacientes')
         .select('*')
@@ -43,7 +44,6 @@ export default function DashboardPaciente() {
       
       setPaciente(dataPaciente || { nombre_completo: user.email?.split('@')[0] });
 
-      // 2. Traer citas del paciente
       const { data: citas } = await supabase
         .from('citas')
         .select(`
@@ -58,7 +58,7 @@ export default function DashboardPaciente() {
         const programadas = citas.filter(c => c.estado === 'programada' || c.estado === 'agendada');
         const pasadas = citas.filter(c => c.estado !== 'programada' && c.estado !== 'agendada');
 
-        setCitasProgramadas(programadas); // 🚀 GUARDAMOS TODAS LAS FUTURAS
+        setCitasProgramadas(programadas);
         setHistorial(pasadas);
       }
     } catch (error) {
@@ -75,7 +75,6 @@ export default function DashboardPaciente() {
     return fecha.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' });
   };
 
-  // === LÓGICA DE CANCELACIÓN ===
   const confirmarCancelacion = async () => {
     if (!citaSeleccionada) return;
     setProcesando(true);
@@ -97,7 +96,6 @@ export default function DashboardPaciente() {
     }
   };
 
-  // === LÓGICA DE REPROGRAMACIÓN ===
   const confirmarReprogramacion = async () => {
     if (!citaSeleccionada || !nuevaFecha || !nuevaHora) return;
     setProcesando(true);
@@ -140,6 +138,9 @@ export default function DashboardPaciente() {
   }
 
   const hoyStr = new Date().toISOString().split('T')[0];
+  
+  // 🚀 LÓGICA PARA CORTAR LA LISTA A 2 CITAS
+  const citasAMostrar = mostrarTodasCitas ? citasProgramadas : citasProgramadas.slice(0, 2);
 
   return (
     <div className="min-h-screen bg-[#F4F7FB] pb-12 relative">
@@ -166,8 +167,10 @@ export default function DashboardPaciente() {
               
               {citasProgramadas.length > 0 ? (
                 <div className="space-y-4">
-                  {citasProgramadas.map((cita) => (
-                    <div key={cita.id} className="bg-white rounded-3xl p-6 md:p-8 shadow-sm border border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-6 transition-all hover:shadow-md">
+                  
+                  {/* RENDERIZAMOS SOLO LAS CITAS A MOSTRAR (2 o todas) */}
+                  {citasAMostrar.map((cita) => (
+                    <div key={cita.id} className="bg-white rounded-3xl p-6 md:p-8 shadow-sm border border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-6 transition-all hover:shadow-md animate-fadeIn">
                       <div className="space-y-4">
                         <div className="inline-flex items-center gap-2 bg-[#E8F5EE] text-[#1A6645] px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wide">
                           {cita.modalidad === 'domicilio' ? <MapPin className="h-3.5 w-3.5" /> : <Video className="h-3.5 w-3.5" />}
@@ -207,7 +210,6 @@ export default function DashboardPaciente() {
                           </div>
                         )}
                         
-                        {/* BOTÓN PARA ABRIR MODAL CON LA CITA ESPECÍFICA */}
                         <button 
                           onClick={() => abrirModalCita(cita)}
                           className="w-full text-slate-400 hover:text-[#0A1E3D] font-semibold text-xs transition"
@@ -217,6 +219,21 @@ export default function DashboardPaciente() {
                       </div>
                     </div>
                   ))}
+
+                  {/* 🚀 BOTÓN PARA VER MÁS O VER MENOS */}
+                  {citasProgramadas.length > 2 && (
+                    <button 
+                      onClick={() => setMostrarTodasCitas(!mostrarTodasCitas)}
+                      className="w-full py-4 rounded-3xl border border-dashed border-slate-300 text-slate-500 font-bold hover:bg-slate-50 hover:text-[#1A5C3A] hover:border-[#1A5C3A] transition flex items-center justify-center gap-2"
+                    >
+                      {mostrarTodasCitas ? (
+                        <>Ver menos citas <ChevronUp className="h-5 w-5" /></>
+                      ) : (
+                        <>Ver todas mis citas programadas ({citasProgramadas.length}) <ChevronDown className="h-5 w-5" /></>
+                      )}
+                    </button>
+                  )}
+
                 </div>
               ) : (
                 <div className="bg-white rounded-3xl p-8 border border-dashed border-slate-300 text-center flex flex-col items-center justify-center gap-4">
@@ -332,7 +349,6 @@ export default function DashboardPaciente() {
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white w-full max-w-md rounded-3xl shadow-2xl overflow-hidden animate-fadeIn slide-down">
             
-            {/* Header del Modal */}
             <div className="flex items-center justify-between p-6 border-b border-slate-100">
               <h3 className="text-lg font-bold text-[#0A1E3D]">
                 {pasoModal === 'menu' && 'Gestionar Cita'}
@@ -347,7 +363,7 @@ export default function DashboardPaciente() {
               </button>
             </div>
 
-            {/* PASO 1: MENÚ DE OPCIONES */}
+            {/* PASO 1 */}
             {pasoModal === 'menu' && (
               <div className="p-6 space-y-4">
                 <p className="text-slate-500 text-sm mb-2">¿Qué deseas hacer con tu cita agendada para el <strong className="text-slate-700">{citaSeleccionada.fecha_cita} a las {citaSeleccionada.hora_cita}</strong>?</p>
@@ -382,7 +398,7 @@ export default function DashboardPaciente() {
               </div>
             )}
 
-            {/* PASO 2: CANCELAR CONFIRMACIÓN */}
+            {/* PASO 2 */}
             {pasoModal === 'cancelar' && (
               <div className="p-6 text-center space-y-6">
                 <div className="h-16 w-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-2">
@@ -409,12 +425,10 @@ export default function DashboardPaciente() {
               </div>
             )}
 
-            {/* PASO 3: REPROGRAMAR (Fecha y Hora) */}
+            {/* PASO 3 */}
             {pasoModal === 'reprogramar' && (
               <div className="p-6 space-y-5">
                 <div className="space-y-4">
-                  
-                  {/* Selector de Fecha */}
                   <div className="space-y-1.5">
                     <label className="text-xs font-bold text-slate-500 uppercase tracking-wider pl-1">Nueva Fecha</label>
                     <input 
@@ -426,7 +440,6 @@ export default function DashboardPaciente() {
                     />
                   </div>
 
-                  {/* Selector de Hora */}
                   {nuevaFecha && (
                     <div className="space-y-2 animate-fadeIn">
                       <label className="text-xs font-bold text-slate-500 uppercase tracking-wider pl-1">Horarios Disponibles</label>
