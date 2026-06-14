@@ -17,6 +17,7 @@ import PerfilPaciente from './pages/PerfilPaciente';
 import PerfilFisio from './pages/PerfilFisio';
 import Mensajeria from './pages/Mensajeria';
 import Calendario from './pages/Calendario';
+import Pacientes from './pages/Pacientes';
 import Disponibilidad from './pages/Disponibilidad';
 import './index.css'
 
@@ -41,6 +42,8 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
         <Route path="/perfil-fisio" element={<PerfilFisio />} />
         <Route path="/mensajeria" element={<Mensajeria />} />
         <Route path="/disponibilidad" element={<Disponibilidad />} />
+        <Route path="/pacientes" element={<Pacientes />} />
+        
         <Route path="/calendario" element={<Calendario />} />
       </Routes>
     </Router>
