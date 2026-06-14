@@ -14,7 +14,8 @@ export default function Calendario() {
   // Estados de la vista
   const hoyStr = new Date().toISOString().split('T')[0];
   const [fechaSeleccionada, setFechaSeleccionada] = useState(hoyStr);
-  const [citasDelDia, setCitasDelDia] = useState<any[]>([]);
+  const [rango, setRango] = useState<'dia' | 'semana'>('semana'); // 🚀 NUEVO: Rango de vista
+  const [citasList, setCitasList] = useState<any[]>([]);
   const [citaActiva, setCitaActiva] = useState<any>(null);
 
   // Estados para las Notas Clínicas
@@ -27,11 +28,11 @@ export default function Calendario() {
     inicializar();
   }, []);
 
-  // Volver a cargar las citas cuando cambie la fecha
+  // Volver a cargar las citas cuando cambie la fecha o el rango
   useEffect(() => {
-    if (fisioId) cargarCitasPorFecha(fisioId, fechaSeleccionada);
-    setCitaActiva(null); // Resetear detalle al cambiar de día
-  }, [fechaSeleccionada]);
+    if (fisioId) cargarCitas(fisioId, fechaSeleccionada, rango);
+    setCitaActiva(null); 
+  }, [fechaSeleccionada, rango]);
 
   // Cargar nota clínica cuando se selecciona una cita completada
   useEffect(() => {
@@ -50,24 +51,35 @@ export default function Calendario() {
       return;
     }
     setFisioId(user.id);
-    await cargarCitasPorFecha(user.id, fechaSeleccionada);
+    await cargarCitas(user.id, hoyStr, 'semana');
     setLoading(false);
   };
 
-  const cargarCitasPorFecha = async (idFisio: string, fecha: string) => {
+  // 🚀 NUEVA LÓGICA DE BÚSQUEDA (Rango de Fechas)
+  const cargarCitas = async (idFisio: string, fechaBase: string, rangoVista: string) => {
     try {
-      const { data } = await supabase
+      let query = supabase
         .from('citas')
-        .select(`
-          *,
-          pacientes ( id, nombre_completo, telefono )
-        `)
+        .select(`*, pacientes ( id, nombre_completo, telefono )`)
         .eq('fisioterapeuta_id', idFisio)
-        .eq('fecha_cita', fecha)
         .neq('estado', 'cancelada')
+        .order('fecha_cita', { ascending: true })
         .order('hora_cita', { ascending: true });
 
-      if (data) setCitasDelDia(data);
+      if (rangoVista === 'dia') {
+        query = query.eq('fecha_cita', fechaBase);
+      } else {
+        // Calcular fecha 7 días después
+        const parts = fechaBase.split('-');
+        const fechaObj = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+        fechaObj.setDate(fechaObj.getDate() + 7);
+        const fechaFin = fechaObj.toISOString().split('T')[0];
+
+        query = query.gte('fecha_cita', fechaBase).lte('fecha_cita', fechaFin);
+      }
+
+      const { data } = await query;
+      if (data) setCitasList(data);
     } catch (error) {
       console.error("Error cargando citas:", error);
     }
@@ -93,7 +105,6 @@ export default function Calendario() {
     }
   };
 
-  // Cambiar estado de Programada -> Completada
   const marcarComoCompletada = async (cita: any) => {
     try {
       const { error } = await supabase
@@ -103,9 +114,8 @@ export default function Calendario() {
 
       if (error) throw error;
 
-      // Actualizar UI localmente
       const citaActualizada = { ...cita, estado: 'completada' };
-      setCitasDelDia(prev => prev.map(c => c.id === cita.id ? citaActualizada : c));
+      setCitasList(prev => prev.map(c => c.id === cita.id ? citaActualizada : c));
       setCitaActiva(citaActualizada);
       
     } catch (error) {
@@ -114,21 +124,18 @@ export default function Calendario() {
     }
   };
 
-  // Guardar o actualizar la Nota Clínica en la base de datos
   const guardarNota = async () => {
     if (!citaActiva || !contenidoNota.trim()) return;
     setGuardandoNota(true);
     
     try {
       if (notaId) {
-        // Actualizar nota existente
         const { error } = await supabase
           .from('notas_clinicas')
           .update({ contenido: contenidoNota })
           .eq('id', notaId);
         if (error) throw error;
       } else {
-        // Crear nota nueva
         const { data, error } = await supabase
           .from('notas_clinicas')
           .insert([{
@@ -144,7 +151,6 @@ export default function Calendario() {
         if (data) setNotaId(data.id);
       }
 
-      // Mostrar mensaje temporal de éxito
       setMensajeExito(true);
       setTimeout(() => setMensajeExito(false), 3000);
       
@@ -155,6 +161,21 @@ export default function Calendario() {
       setGuardandoNota(false);
     }
   };
+
+  // 🚀 UTILIDADES PARA LA UI
+  const formatearFecha = (fechaStr: string) => {
+    if (!fechaStr) return '';
+    const [year, month, day] = fechaStr.split('-');
+    const fecha = new Date(Number(year), Number(month) - 1, Number(day));
+    return fecha.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' });
+  };
+
+  // 🚀 AGRUPAR CITAS POR FECHA PARA EL RENDERIZADO
+  const citasAgrupadas = citasList.reduce((acc: any, cita) => {
+    if (!acc[cita.fecha_cita]) acc[cita.fecha_cita] = [];
+    acc[cita.fecha_cita].push(cita);
+    return acc;
+  }, {});
 
   if (loading) {
     return (
@@ -181,11 +202,30 @@ export default function Calendario() {
 
       <div className="max-w-7xl mx-auto w-full px-4 sm:px-8 mt-8 grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
         
-        {/* COLUMNA IZQUIERDA: Selector de Fecha y Lista de Citas */}
+        {/* COLUMNA IZQUIERDA: Selector y Lista agrupada */}
         <div className="lg:col-span-5 space-y-6">
           
           <div className="bg-white rounded-3xl p-6 shadow-sm border border-slate-100">
-            <h3 className="font-bold text-[#0A1E3D] mb-4">Seleccionar Fecha</h3>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-bold text-[#0A1E3D]">Filtro de Fechas</h3>
+            </div>
+            
+            {/* 🚀 TOGGLE 1 DÍA / 7 DÍAS */}
+            <div className="flex bg-slate-100 p-1.5 rounded-xl mb-4">
+              <button 
+                onClick={() => setRango('dia')} 
+                className={`flex-1 text-xs font-bold py-2.5 rounded-lg transition ${rango === 'dia' ? 'bg-white shadow-sm text-[#1A5C3A]' : 'text-slate-500 hover:text-slate-700'}`}
+              >
+                1 Día
+              </button>
+              <button 
+                onClick={() => setRango('semana')} 
+                className={`flex-1 text-xs font-bold py-2.5 rounded-lg transition ${rango === 'semana' ? 'bg-white shadow-sm text-[#1A5C3A]' : 'text-slate-500 hover:text-slate-700'}`}
+              >
+                7 Días
+              </button>
+            </div>
+
             <input 
               type="date" 
               value={fechaSeleccionada}
@@ -196,44 +236,57 @@ export default function Calendario() {
 
           <div className="bg-white rounded-3xl p-6 shadow-sm border border-slate-100">
             <h3 className="font-bold text-[#0A1E3D] mb-4 flex justify-between items-center">
-              <span>Citas de este día</span>
-              <span className="bg-slate-100 text-slate-500 text-xs px-2.5 py-1 rounded-full">{citasDelDia.length}</span>
+              <span>Resultados ({citasList.length})</span>
             </h3>
 
-            <div className="space-y-3 overflow-y-auto max-h-[500px] scrollbar-thin pr-1">
-              {citasDelDia.length > 0 ? (
-                citasDelDia.map(cita => (
-                  <button
-                    key={cita.id}
-                    onClick={() => setCitaActiva(cita)}
-                    className={`w-full text-left p-4 rounded-2xl border-2 transition-all ${
-                      citaActiva?.id === cita.id 
-                        ? 'border-[#1A5C3A] bg-[#E8F5EE] shadow-sm' 
-                        : 'border-slate-100 hover:border-slate-300 hover:bg-slate-50'
-                    }`}
-                  >
-                    <div className="flex justify-between items-start mb-2">
-                      <span className={`text-xs font-bold px-2 py-1 rounded-md border ${
-                        citaActiva?.id === cita.id ? 'bg-white border-[#1A5C3A]/20 text-[#1A5C3A]' : 'bg-white border-slate-200 text-slate-600'
-                      }`}>
-                        {cita.hora_cita}
-                      </span>
-                      <span className={`text-[10px] font-bold uppercase px-2 py-1 rounded-md ${
-                        cita.estado === 'completada' ? 'bg-emerald-100 text-emerald-700' : 'bg-blue-50 text-blue-600'
-                      }`}>
-                        {cita.estado}
-                      </span>
+            <div className="space-y-5 overflow-y-auto max-h-[500px] scrollbar-thin pr-2">
+              {Object.keys(citasAgrupadas).length > 0 ? (
+                Object.keys(citasAgrupadas).map((fecha) => (
+                  <div key={fecha} className="space-y-3">
+                    {/* ENCABEZADO DE FECHA (Sticky) */}
+                    <div className="sticky top-0 bg-white/95 backdrop-blur-sm py-1 z-10">
+                      <h4 className="text-xs font-extrabold text-slate-400 uppercase tracking-wider capitalize">
+                        {formatearFecha(fecha)}
+                      </h4>
                     </div>
-                    <h4 className="font-bold text-[#0A1E3D] text-sm truncate">{cita.pacientes?.nombre_completo}</h4>
-                    <p className="text-xs text-slate-500 flex items-center gap-1 mt-1 capitalize">
-                      {cita.modalidad === 'domicilio' ? <MapPin className="h-3 w-3" /> : <Video className="h-3 w-3" />}
-                      {cita.modalidad}
-                    </p>
-                  </button>
+                    
+                    {/* CITAS DE ESA FECHA */}
+                    <div className="space-y-3">
+                      {citasAgrupadas[fecha].map((cita: any) => (
+                        <button
+                          key={cita.id}
+                          onClick={() => setCitaActiva(cita)}
+                          className={`w-full text-left p-4 rounded-2xl border-2 transition-all ${
+                            citaActiva?.id === cita.id 
+                              ? 'border-[#1A5C3A] bg-[#E8F5EE] shadow-sm' 
+                              : 'border-slate-100 hover:border-slate-300 hover:bg-slate-50'
+                          }`}
+                        >
+                          <div className="flex justify-between items-start mb-2">
+                            <span className={`text-xs font-bold px-2 py-1 rounded-md border ${
+                              citaActiva?.id === cita.id ? 'bg-white border-[#1A5C3A]/20 text-[#1A5C3A]' : 'bg-white border-slate-200 text-slate-600'
+                            }`}>
+                              {cita.hora_cita}
+                            </span>
+                            <span className={`text-[10px] font-bold uppercase px-2 py-1 rounded-md ${
+                              cita.estado === 'completada' ? 'bg-emerald-100 text-emerald-700' : 'bg-blue-50 text-blue-600'
+                            }`}>
+                              {cita.estado}
+                            </span>
+                          </div>
+                          <h4 className="font-bold text-[#0A1E3D] text-sm truncate">{cita.pacientes?.nombre_completo}</h4>
+                          <p className="text-xs text-slate-500 flex items-center gap-1 mt-1 capitalize">
+                            {cita.modalidad === 'domicilio' ? <MapPin className="h-3 w-3" /> : <Video className="h-3 w-3" />}
+                            {cita.modalidad}
+                          </p>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                 ))
               ) : (
                 <div className="text-center py-10 border border-dashed border-slate-200 rounded-2xl bg-slate-50/50">
-                  <p className="text-slate-400 text-sm">No tienes citas agendadas para este día.</p>
+                  <p className="text-slate-400 text-sm">No hay citas en este rango de fechas.</p>
                 </div>
               )}
             </div>
@@ -257,12 +310,16 @@ export default function Calendario() {
               
               {/* Resumen del Paciente (Header) */}
               <div className="flex items-center gap-4 pb-6 border-b border-slate-100">
-                <div className="h-16 w-16 bg-[#0A1E3D] text-white rounded-2xl flex items-center justify-center font-bold text-xl">
+                <div className="h-16 w-16 bg-[#0A1E3D] text-white rounded-2xl flex items-center justify-center font-bold text-xl uppercase">
                   {citaActiva.pacientes?.nombre_completo.charAt(0)}
                 </div>
                 <div>
-                  <h2 className="text-2xl font-bold text-[#0A1E3D]">{citaActiva.pacientes?.nombre_completo}</h2>
+                  <h2 className="text-2xl font-bold text-[#0A1E3D] capitalize">{citaActiva.pacientes?.nombre_completo}</h2>
                   <div className="flex flex-wrap items-center gap-3 text-sm text-slate-500 mt-1">
+                    <span className="flex items-center gap-1 font-bold text-[#1A5C3A]">
+                      <CalendarIcon className="h-4 w-4" /> {citaActiva.fecha_cita}
+                    </span>
+                    <span className="text-slate-300">|</span>
                     <span className="flex items-center gap-1"><Clock className="h-4 w-4" /> {citaActiva.hora_cita}</span>
                     <span className="text-slate-300">|</span>
                     <span className="flex items-center gap-1 capitalize">
@@ -323,7 +380,7 @@ export default function Calendario() {
                     <button 
                       onClick={guardarNota}
                       disabled={!contenidoNota.trim() || guardandoNota}
-                      className="bg-[#0A1E3D] hover:bg-[#122d5a] text-white px-6 py-3 rounded-xl font-bold text-sm transition flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="bg-[#0A1E3D] hover:bg-[#122d5a] text-white px-6 py-3 rounded-xl font-bold text-sm transition flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
                     >
                       {guardandoNota ? (
                         <div className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
