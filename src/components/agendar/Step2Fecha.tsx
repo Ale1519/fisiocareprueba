@@ -42,15 +42,17 @@ export default function Step2Fecha({ fisioId, data, onNext, onBack }: any) {
         return;
       }
 
-      // 3. Generar los bloques de hora (Ej: de 09:00 a 18:00)
+      // 3. 🚀 CORRECCIÓN: Generar los bloques de hora de manera segura
       const generados = [];
-      let hActual = parseInt(disp.hora_inicio.split(':')[0]);
-      const hFin = parseInt(disp.hora_fin.split(':')[0]);
+      // Extraemos solo la hora (ej: de "09:00:00" extrae "09" y lo convierte en el número 9)
+      const horaInicioNum = parseInt(disp.hora_inicio.split(':')[0], 10);
+      const horaFinNum = parseInt(disp.hora_fin.split(':')[0], 10);
       
-      while (hActual < hFin) {
-        generados.push(`${hActual.toString().padStart(2, '0')}:00`);
-        hActual++;
+      for (let h = horaInicioNum; h < horaFinNum; h++) {
+        // Volvemos a formatear a texto con dos ceros (Ej: 9 -> "09:00")
+        generados.push(`${h.toString().padStart(2, '0')}:00`);
       }
+      
       setHorariosDelDia(generados);
 
       // 4. Traer las horas ya ocupadas (citas agendadas)
@@ -62,6 +64,7 @@ export default function Step2Fecha({ fisioId, data, onNext, onBack }: any) {
         .neq('estado', 'cancelada');
 
       if (citas) {
+        // Extraemos solo los primeros 5 caracteres por si Supabase manda los segundos ("09:00:00" -> "09:00")
         const ocupadas = citas.map((c: any) => c.hora_cita.substring(0, 5));
         setHorasOcupadas(ocupadas);
       } else {
@@ -113,7 +116,7 @@ export default function Step2Fecha({ fisioId, data, onNext, onBack }: any) {
                     // Lógica extra: Si el día elegido es hoy, bloquear horas que ya pasaron
                     const esHoy = fecha === hoyStr;
                     const horaActual = new Date().getHours();
-                    const horaBloque = parseInt(bloque.split(':')[0]);
+                    const horaBloque = parseInt(bloque.split(':')[0], 10);
                     const yaPaso = esHoy && horaActual >= horaBloque;
 
                     // Está inhabilitado si está ocupado en la BD o si la hora ya pasó hoy
