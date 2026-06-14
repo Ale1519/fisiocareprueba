@@ -16,6 +16,7 @@ import AgendarCita from './pages/AgendarCita';
 import PerfilPaciente from './pages/PerfilPaciente';
 import PerfilFisio from './pages/PerfilFisio';
 import Mensajeria from './pages/Mensajeria';
+import Calendario from './pages/Calendario';
 import './index.css'
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
@@ -38,6 +39,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
         <Route path="/perfil-paciente" element={<PerfilPaciente />} />
         <Route path="/perfil-fisio" element={<PerfilFisio />} />
         <Route path="/mensajeria" element={<Mensajeria />} />
+        <Route path="/calendario" element={<Calendario />} />
       </Routes>
     </Router>
   </React.StrictMode>,
