@@ -5,7 +5,7 @@ import { ArrowLeft, Send, User, Search, Clock } from 'lucide-react';
 
 export default function Mensajeria() {
   const navigate = useNavigate();
-  const location = useLocation(); // 🚀 NUEVO: Para recibir datos de otra pantalla
+  const location = useLocation();
   
   const [usuarioActual, setUsuarioActual] = useState<any>(null);
   const [rol, setRol] = useState<'paciente' | 'fisio' | null>(null);
@@ -36,31 +36,30 @@ export default function Mensajeria() {
     initData();
   }, [navigate]);
 
-  // 🚀 NUEVO: Escuchar si venimos de la pantalla "Especialistas" con un contacto nuevo
+  // Escuchar si venimos de la pantalla "Especialistas" con un contacto nuevo
   useEffect(() => {
     if (location.state?.nuevoContacto) {
       const nuevo = location.state.nuevoContacto;
       
-      // Agregarlo a la lista de contactos si no estaba ya
       setContactos(prev => {
         const existe = prev.find(c => c.id === nuevo.id);
         if (!existe) {
-          return [nuevo, ...prev]; // Lo pone al inicio de la lista
+          return [nuevo, ...prev]; 
         }
         return prev;
       });
       
-      // Abrir el chat automáticamente
       setContactoActivo(nuevo);
-      
-      // Limpiar el estado para que no se quede pegado si recarga la página
       window.history.replaceState({}, document.title);
     }
   }, [location.state]);
 
-  // 2. Cargar contactos basados en las citas agendadas/completadas
+  // 2. 🚀 CARGAR CONTACTOS (Citas + Historial de Mensajes)
   const cargarContactos = async (userId: string, userRol: string) => {
     try {
+      const contactosMap = new Map(); // Usamos un mapa para evitar duplicados
+
+      // --- PASO A: Buscar contactos por CITAS ---
       const columnaFiltro = userRol === 'fisio' ? 'fisioterapeuta_id' : 'paciente_id';
       const columnaRelacion = userRol === 'fisio' ? 'pacientes ( id, nombre_completo )' : 'fisioterapeutas ( id, nombres, apellidos )';
 
@@ -71,27 +70,78 @@ export default function Mensajeria() {
         .neq('estado', 'cancelada');
 
       if (citas) {
-        const contactosUnicos = new Map();
         citas.forEach((cita: any) => {
           const persona = userRol === 'fisio' ? cita.pacientes : cita.fisioterapeutas;
-          if (persona && !contactosUnicos.has(persona.id)) {
-            contactosUnicos.set(persona.id, {
+          if (persona && !contactosMap.has(persona.id)) {
+            contactosMap.set(persona.id, {
               id: persona.id,
               nombre: userRol === 'fisio' ? persona.nombre_completo : `${persona.nombres} ${persona.apellidos}`
             });
           }
         });
-        
-        // Solo actualizamos si no viene uno nuevo desde el "state" para no borrarlo
-        setContactos(prev => {
-          const nuevos = Array.from(contactosUnicos.values());
-          const combinados = [...prev];
-          nuevos.forEach(n => {
-            if (!combinados.find(c => c.id === n.id)) combinados.push(n);
-          });
-          return combinados;
-        });
       }
+
+      // --- PASO B: Buscar contactos por MENSAJES PREVIOS ---
+      const { data: historialMensajes } = await supabase
+        .from('mensajes')
+        .select('remitente_id, destinatario_id')
+        .or(`remitente_id.eq.${userId},destinatario_id.eq.${userId}`);
+
+      if (historialMensajes) {
+        const idsAdicionales = new Set<string>();
+
+        // Extraer los IDs de las otras personas con las que chateó
+        historialMensajes.forEach((msg) => {
+          const otroId = msg.remitente_id === userId ? msg.destinatario_id : msg.remitente_id;
+          if (!contactosMap.has(otroId)) {
+            idsAdicionales.add(otroId);
+          }
+        });
+
+        // Si hay personas con las que chateó pero no tenían cita, buscamos sus nombres
+        if (idsAdicionales.size > 0) {
+          const idsArray = Array.from(idsAdicionales);
+          
+          if (userRol === 'paciente') {
+            const { data: fisiosExtra } = await supabase
+              .from('fisioterapeutas')
+              .select('id, nombres, apellidos')
+              .in('id', idsArray);
+              
+            fisiosExtra?.forEach(f => {
+              contactosMap.set(f.id, {
+                id: f.id,
+                nombre: `${f.nombres} ${f.apellidos}`
+              });
+            });
+          } else {
+            const { data: pacientesExtra } = await supabase
+              .from('pacientes')
+              .select('id, nombre_completo')
+              .in('id', idsArray);
+              
+            pacientesExtra?.forEach(p => {
+              contactosMap.set(p.id, {
+                id: p.id,
+                nombre: p.nombre_completo
+              });
+            });
+          }
+        }
+      }
+
+      // --- PASO C: Actualizar el estado ---
+      setContactos(prev => {
+        const combinados = Array.from(contactosMap.values());
+        // Mantener los que acaban de llegar por "state" de react-router (para que no desaparezcan antes del primer mensaje)
+        prev.forEach(p => {
+          if (!contactosMap.has(p.id)) {
+            combinados.unshift(p);
+          }
+        });
+        return combinados;
+      });
+
     } catch (error) {
       console.error("Error cargando contactos:", error);
     }
