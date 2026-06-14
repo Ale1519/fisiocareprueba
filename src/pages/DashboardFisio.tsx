@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { 
   Calendar, Clock, MapPin, Video, Users, DollarSign, 
-  TrendingUp, CheckCircle, FileText, Settings, ChevronRight, UserCircle,
+  TrendingUp, CheckCircle, FileText, ChevronRight, UserCircle,
   MessageSquare, ChevronDown, ChevronUp
 } from 'lucide-react';
 
