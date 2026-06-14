@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { Link, useNavigate } from 'react-router-dom';
 import { 
-  ArrowLeft, Calendar as CalendarIcon, Clock, MapPin, 
+  ArrowLeft, Calendar as CalendarIcon, MapPin, 
   Video, FileText, CheckCircle2, Save, AlertCircle 
 } from 'lucide-react';
 
@@ -18,7 +18,7 @@ export default function Calendario() {
   const [citasList, setCitasList] = useState<any[]>([]);
   const [citaActiva, setCitaActiva] = useState<any>(null);
 
-  // 🚀 NUEVOS ESTADOS ESTRUCTURADOS PARA LAS NOTAS CLÍNICAS
+  // ESTADOS ESTRUCTURADOS PARA LAS NOTAS CLÍNICAS
   const [notaId, setNotaId] = useState<string | null>(null);
   const [diagnostico, setDiagnostico] = useState('');
   const [planTratamiento, setPlanTratamiento] = useState('');
@@ -92,11 +92,11 @@ export default function Calendario() {
     }
   };
 
-  // 🚀 CARGAR NOTA DESDE TU NUEVA ESTRUCTURA DE TABLA
+  // CARGAR NOTA DESDE TU NUEVA ESTRUCTURA DE TABLA
   const cargarNotaClinica = async (citaId: string) => {
     try {
       const { data } = await supabase
-        .from('notes_clinicas' as any || 'notas_clinicas') // Manejo flexible del nombre de tabla
+        .from('notas_clinicas') 
         .select('id, diagnostico, plan_tratamiento, ejercicios_recomendados, recomendaciones')
         .eq('cita_id', citaId)
         .maybeSingle();
@@ -133,7 +133,7 @@ export default function Calendario() {
     }
   };
 
-  // 🚀 GUARDAR O ACTUALIZAR LAS 4 COLUMNAS EN SUPABASE
+  // GUARDAR O ACTUALIZAR LAS 4 COLUMNAS EN SUPABASE
   const guardarNota = async () => {
     if (!citaActiva) return;
     setGuardandoNota(true);
@@ -150,7 +150,6 @@ export default function Calendario() {
 
     try {
       if (notaId) {
-        // Actualización
         const { error } = await supabase
           .from('notas_clinicas')
           .update({
@@ -162,7 +161,6 @@ export default function Calendario() {
           .eq('id', notaId);
         if (error) throw error;
       } else {
-        // Inserción de registro nuevo
         const { data, error } = await supabase
           .from('notas_clinicas')
           .insert([payload])
@@ -296,7 +294,7 @@ export default function Calendario() {
                   </button>
                 </div>
               ) : (
-                // 🚀 LOS 4 BLOQUES CLÍNICOS ESTRUCTURADOS
+                // LOS 4 BLOQUES CLÍNICOS ESTRUCTURADOS
                 <div className="flex-grow flex flex-col space-y-4">
                   
                   {/* 1. Diagnóstico */}
