@@ -6,21 +6,54 @@ export default function Step2Fecha({ fisioId, data, onNext, onBack }: any) {
   const [fecha, setFecha] = useState(data.fecha || '');
   const [hora, setHora] = useState(data.hora || '');
   
+  const [horariosDelDia, setHorariosDelDia] = useState<string[]>([]);
   const [horasOcupadas, setHorasOcupadas] = useState<string[]>([]);
   const [loadingHoras, setLoadingHoras] = useState(false);
 
   // Fecha de hoy para que no puedan elegir días pasados
   const hoyStr = new Date().toISOString().split('T')[0];
-  
-  // Amplié tu lista de horarios para que la cuadrícula se vea mejor (puedes ajustar los que quieras)
-  const horariosDisponibles = ['09:00', '10:00', '11:00', '12:00', '14:00', '15:00', '16:00', '17:00'];
 
-  // Cuando se selecciona un día, consultar Supabase
+  // Cuando se selecciona un día, consultar Disponibilidad y Citas Ocupadas
   useEffect(() => {
     if (!fecha) return;
 
-    const fetchHorasOcupadas = async () => {
+    const fetchDisponibilidadYHoras = async () => {
       setLoadingHoras(true);
+
+      // 1. Saber qué día de la semana es (0 = Dom, 1 = Lun, etc.)
+      const [year, month, day] = fecha.split('-');
+      const dateObj = new Date(Number(year), Number(month) - 1, Number(day));
+      const diaSemana = dateObj.getDay();
+
+      // 2. Traer el horario del fisio para ese día
+      const { data: disp } = await supabase
+        .from('disponibilidad')
+        .select('hora_inicio, hora_fin')
+        .eq('fisioterapeuta_id', fisioId)
+        .eq('dia_semana', diaSemana)
+        .maybeSingle();
+
+      if (!disp) {
+        // El fisio no trabaja este día
+        setHorariosDelDia([]);
+        setHorasOcupadas([]);
+        setLoadingHoras(false);
+        setHora('');
+        return;
+      }
+
+      // 3. Generar los bloques de hora (Ej: de 09:00 a 18:00)
+      const generados = [];
+      let hActual = parseInt(disp.hora_inicio.split(':')[0]);
+      const hFin = parseInt(disp.hora_fin.split(':')[0]);
+      
+      while (hActual < hFin) {
+        generados.push(`${hActual.toString().padStart(2, '0')}:00`);
+        hActual++;
+      }
+      setHorariosDelDia(generados);
+
+      // 4. Traer las horas ya ocupadas (citas agendadas)
       const { data: citas } = await supabase
         .from('citas')
         .select('hora_cita')
@@ -29,16 +62,17 @@ export default function Step2Fecha({ fisioId, data, onNext, onBack }: any) {
         .neq('estado', 'cancelada');
 
       if (citas) {
-        // Guardamos las horas que la BD nos dice que ya están tomadas
-        // (Formato esperado de Supabase Time: "09:00:00")
         const ocupadas = citas.map((c: any) => c.hora_cita.substring(0, 5));
         setHorasOcupadas(ocupadas);
+      } else {
+        setHorasOcupadas([]);
       }
+
       setLoadingHoras(false);
       setHora(''); // Resetear hora si cambia de día
     };
 
-    fetchHorasOcupadas();
+    fetchDisponibilidadYHoras();
   }, [fecha, fisioId]);
 
   return (
@@ -70,37 +104,45 @@ export default function Step2Fecha({ fisioId, data, onNext, onBack }: any) {
               <span className="animate-spin rounded-full h-4 w-4 border-b-2 border-[#1A5C3A]"></span> Verificando disponibilidad...
             </div>
           ) : (
-            <div className="grid grid-cols-3 gap-3">
-              {horariosDisponibles.map((bloque) => {
-                const ocupado = horasOcupadas.includes(bloque);
-                
-                // Lógica extra: Si el día elegido es hoy, bloquear horas que ya pasaron
-                const esHoy = fecha === hoyStr;
-                const horaActual = new Date().getHours();
-                const horaBloque = parseInt(bloque.split(':')[0]);
-                const yaPaso = esHoy && horaActual >= horaBloque;
+            <>
+              {horariosDelDia.length > 0 ? (
+                <div className="grid grid-cols-3 gap-3">
+                  {horariosDelDia.map((bloque) => {
+                    const ocupado = horasOcupadas.includes(bloque);
+                    
+                    // Lógica extra: Si el día elegido es hoy, bloquear horas que ya pasaron
+                    const esHoy = fecha === hoyStr;
+                    const horaActual = new Date().getHours();
+                    const horaBloque = parseInt(bloque.split(':')[0]);
+                    const yaPaso = esHoy && horaActual >= horaBloque;
 
-                // Está inhabilitado si está ocupado en la BD o si la hora ya pasó hoy
-                const inhabilitado = ocupado || yaPaso;
+                    // Está inhabilitado si está ocupado en la BD o si la hora ya pasó hoy
+                    const inhabilitado = ocupado || yaPaso;
 
-                return (
-                  <button
-                    key={bloque}
-                    disabled={inhabilitado}
-                    onClick={() => setHora(bloque)}
-                    className={`py-3 rounded-xl text-sm font-bold border transition flex items-center justify-center gap-1.5 ${
-                      inhabilitado 
-                        ? 'bg-slate-50 border-slate-100 text-slate-300 cursor-not-allowed line-through' 
-                        : hora === bloque 
-                          ? 'bg-[#1A5C3A] text-white border-[#1A5C3A] shadow-md shadow-[#1A5C3A]/20' 
-                          : 'bg-white text-slate-600 border-slate-200 hover:border-[#1A5C3A] hover:text-[#1A5C3A]'
-                    }`}
-                  >
-                    {bloque}
-                  </button>
-                );
-              })}
-            </div>
+                    return (
+                      <button
+                        key={bloque}
+                        disabled={inhabilitado}
+                        onClick={() => setHora(bloque)}
+                        className={`py-3 rounded-xl text-sm font-bold border transition flex items-center justify-center gap-1.5 ${
+                          inhabilitado 
+                            ? 'bg-slate-50 border-slate-100 text-slate-300 cursor-not-allowed line-through' 
+                            : hora === bloque 
+                              ? 'bg-[#1A5C3A] text-white border-[#1A5C3A] shadow-md shadow-[#1A5C3A]/20' 
+                              : 'bg-white text-slate-600 border-slate-200 hover:border-[#1A5C3A] hover:text-[#1A5C3A]'
+                        }`}
+                      >
+                        {bloque}
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="p-4 bg-red-50 border border-red-100 rounded-xl text-red-600 text-sm font-medium text-center">
+                  El fisioterapeuta no atiende en el día seleccionado. Por favor elige otra fecha.
+                </div>
+              )}
+            </>
           )}
         </div>
       </div>
