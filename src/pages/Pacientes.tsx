@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabase';
 import { Link, useNavigate } from 'react-router-dom';
 import { 
   ArrowLeft, Search, User, Phone, Calendar, 
-  FileText, Activity, ChevronDown, ChevronUp 
+  FileText, Activity, ChevronDown, ChevronUp, Clock 
 } from 'lucide-react';
 
 export default function Pacientes() {
