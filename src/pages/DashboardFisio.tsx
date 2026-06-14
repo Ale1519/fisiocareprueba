@@ -4,16 +4,23 @@ import { supabase } from '../lib/supabase';
 import { 
   Calendar, Clock, MapPin, Video, Users, DollarSign, 
   TrendingUp, CheckCircle, FileText, Settings, ChevronRight, UserCircle,
-  MessageSquare
+  MessageSquare, ChevronDown, ChevronUp
 } from 'lucide-react';
 
 export default function DashboardFisio() {
   const [fisio, setFisio] = useState<any>(null);
+  
+  // Arreglos de citas
   const [citasHoy, setCitasHoy] = useState<any[]>([]);
   const [proximasCitas, setProximasCitas] = useState<any[]>([]);
+  const [historialCitas, setHistorialCitas] = useState<any[]>([]); // 🚀 NUEVO: Historial
+  
+  // Estados para los acordeones
+  const [mostrarTodasProximas, setMostrarTodasProximas] = useState(false);
+  const [mostrarTodoHistorial, setMostrarTodoHistorial] = useState(false);
+  
   const [loading, setLoading] = useState(true);
 
-  // Función auxiliar para obtener el mes en texto corto
   const obtenerMes = (fechaStr: string) => {
     if (!fechaStr) return '';
     const meses = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
@@ -51,12 +58,13 @@ export default function DashboardFisio() {
       if (citas) {
         const hoy = new Date().toISOString().split('T')[0];
         
-        // Solo mostramos las programadas, las completadas ya no salen aquí
         const hoyCitas = citas.filter(c => c.fecha_cita === hoy && c.estado === 'programada');
         const futurasCitas = citas.filter(c => c.fecha_cita > hoy && c.estado === 'programada');
+        const pasadasCitas = citas.filter(c => c.estado === 'completada' || c.estado === 'cancelada').reverse(); // Las más recientes primero
 
         setCitasHoy(hoyCitas);
         setProximasCitas(futurasCitas);
+        setHistorialCitas(pasadasCitas);
       }
     } catch (error) {
       console.error("Error cargando dashboard de fisio:", error);
@@ -65,7 +73,6 @@ export default function DashboardFisio() {
     }
   };
 
-  // 🚀 NUEVA FUNCIONALIDAD: Completar o Cancelar la cita
   const cambiarEstadoCita = async (citaId: string, nuevoEstado: 'completada' | 'cancelada') => {
     try {
       const { error } = await supabase
@@ -75,9 +82,8 @@ export default function DashboardFisio() {
 
       if (error) throw error;
 
-      // Actualizamos la UI inmediatamente quitando la cita de la lista
-      setCitasHoy(prev => prev.filter(c => c.id !== citaId));
-      setProximasCitas(prev => prev.filter(c => c.id !== citaId));
+      // Recargar datos para que se muevan automáticamente a la sección de historial
+      await cargarDatosFisio();
       
     } catch (error) {
       console.error(`Error al marcar como ${nuevoEstado}:`, error);
@@ -92,6 +98,10 @@ export default function DashboardFisio() {
       </div>
     );
   }
+
+  // 🚀 Lógica para cortar las listas a 2 elementos
+  const proximasAMostrar = mostrarTodasProximas ? proximasCitas : proximasCitas.slice(0, 2);
+  const historialAMostrar = mostrarTodoHistorial ? historialCitas : historialCitas.slice(0, 2);
 
   return (
     <div className="min-h-screen bg-[#F4F7FB] pb-12">
@@ -176,11 +186,10 @@ export default function DashboardFisio() {
                           </p>
                         )}
                         
-                        {/* BOTONES FUNCIONALES */}
                         <div className="mt-4 flex gap-2">
                           <button 
                             onClick={() => cambiarEstadoCita(cita.id, 'completada')}
-                            className="flex-1 bg-[#1A5C3A] text-white text-xs font-bold py-2.5 rounded-lg hover:bg-[#124229] transition"
+                            className="flex-1 bg-[#1A5C3A] text-white text-xs font-bold py-2.5 rounded-lg hover:bg-[#124229] transition flex justify-center gap-1"
                           >
                             ✓ Completar
                           </button>
@@ -206,35 +215,114 @@ export default function DashboardFisio() {
               )}
             </section>
 
-            {/* PRÓXIMAS RESERVAS */}
+            {/* 🚀 PRÓXIMAS RESERVAS (Expandible) */}
             <section>
               <h2 className="text-lg font-bold text-[#0A1E3D] mb-4">Próximas Reservas</h2>
               <div className="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden">
                 {proximasCitas.length > 0 ? (
-                  <div className="divide-y divide-slate-100">
-                    {proximasCitas.map((cita) => (
-                      <div key={cita.id} className="p-5 flex items-center justify-between hover:bg-slate-50 transition">
-                        <div className="flex items-center gap-4">
-                          <div className="h-12 w-12 bg-[#F4F7FB] rounded-xl flex flex-col items-center justify-center text-[#0A1E3D]">
-                            <span className="text-xs font-bold">{cita.fecha_cita.split('-')[2]}</span>
-                            <span className="text-[10px] uppercase">{obtenerMes(cita.fecha_cita)}</span>
+                  <div className="space-y-0">
+                    <div className="divide-y divide-slate-100">
+                      {proximasAMostrar.map((cita) => (
+                        <div key={cita.id} className="p-5 flex items-center justify-between hover:bg-slate-50 transition">
+                          <div className="flex items-center gap-4">
+                            <div className="h-12 w-12 bg-[#F4F7FB] rounded-xl flex flex-col items-center justify-center text-[#0A1E3D]">
+                              <span className="text-xs font-bold">{cita.fecha_cita.split('-')[2]}</span>
+                              <span className="text-[10px] uppercase">{obtenerMes(cita.fecha_cita)}</span>
+                            </div>
+                            <div>
+                              <p className="font-bold text-[#0A1E3D]">{cita.pacientes?.nombre_completo}</p>
+                              <p className="text-xs text-slate-500 flex items-center gap-1">
+                                <Clock className="h-3 w-3" /> {cita.hora_cita} • <span className="capitalize">{cita.modalidad}</span>
+                              </p>
+                            </div>
                           </div>
-                          <div>
-                            <p className="font-bold text-[#0A1E3D]">{cita.pacientes?.nombre_completo}</p>
-                            <p className="text-xs text-slate-500 flex items-center gap-1">
-                              <Clock className="h-3 w-3" /> {cita.hora_cita} • <span className="capitalize">{cita.modalidad}</span>
-                            </p>
-                          </div>
+                          <button className="text-[#1A5C3A] hover:bg-[#E8F5EE] p-2 rounded-lg transition">
+                            <ChevronRight className="h-5 w-5" />
+                          </button>
                         </div>
-                        <button className="text-[#1A5C3A] hover:bg-[#E8F5EE] p-2 rounded-lg transition">
-                          <ChevronRight className="h-5 w-5" />
+                      ))}
+                    </div>
+
+                    {proximasCitas.length > 2 && (
+                      <div className="p-4 border-t border-slate-100 bg-slate-50">
+                        <button 
+                          onClick={() => setMostrarTodasProximas(!mostrarTodasProximas)}
+                          className="w-full py-2.5 rounded-xl border border-dashed border-slate-300 text-slate-500 font-bold hover:bg-white hover:text-[#1A5C3A] transition flex items-center justify-center gap-2 text-sm"
+                        >
+                          {mostrarTodasProximas ? (
+                            <>Ver menos <ChevronUp className="h-4 w-4" /></>
+                          ) : (
+                            <>Ver todas ({proximasCitas.length}) <ChevronDown className="h-4 w-4" /></>
+                          )}
                         </button>
                       </div>
-                    ))}
+                    )}
                   </div>
                 ) : (
-                  <div className="p-6 text-center text-slate-500 text-sm">
+                  <div className="p-8 text-center text-slate-500 text-sm">
                     No hay reservas próximas por el momento.
+                  </div>
+                )}
+              </div>
+            </section>
+
+            {/* 🚀 NUEVO: HISTORIAL DE CITAS PASADAS (Expandible) */}
+            <section>
+              <h2 className="text-lg font-bold text-[#0A1E3D] mb-4 flex items-center gap-2">
+                <FileText className="h-5 w-5 text-slate-400" /> Historial de Atenciones
+              </h2>
+              <div className="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden">
+                {historialCitas.length > 0 ? (
+                  <div className="space-y-0">
+                    <div className="divide-y divide-slate-100">
+                      {historialAMostrar.map((cita) => (
+                        <div key={cita.id} className="p-5 flex items-center justify-between hover:bg-slate-50 transition">
+                          <div className="flex items-center gap-4">
+                            <div className="h-12 w-12 bg-slate-100 rounded-xl flex flex-col items-center justify-center text-slate-500">
+                              <span className="text-xs font-bold">{cita.fecha_cita.split('-')[2]}</span>
+                              <span className="text-[10px] uppercase">{obtenerMes(cita.fecha_cita)}</span>
+                            </div>
+                            <div>
+                              <p className="font-bold text-[#0A1E3D]">{cita.pacientes?.nombre_completo}</p>
+                              <div className="flex items-center gap-2 mt-0.5">
+                                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md capitalize ${
+                                  cita.estado === 'completada' ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600'
+                                }`}>
+                                  {cita.estado}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                          
+                          {/* Botón que lleva al calendario para ver/editar la nota clínica */}
+                          <Link 
+                            to="/calendario" 
+                            className="text-xs font-bold text-[#1A5C3A] hover:bg-[#E8F5EE] px-3 py-2 rounded-lg transition border border-[#1A5C3A]/20"
+                          >
+                            Ver nota
+                          </Link>
+                        </div>
+                      ))}
+                    </div>
+
+                    {historialCitas.length > 2 && (
+                      <div className="p-4 border-t border-slate-100 bg-slate-50">
+                        <button 
+                          onClick={() => setMostrarTodoHistorial(!mostrarTodoHistorial)}
+                          className="w-full py-2.5 rounded-xl border border-dashed border-slate-300 text-slate-500 font-bold hover:bg-white hover:text-[#1A5C3A] transition flex items-center justify-center gap-2 text-sm"
+                        >
+                          {mostrarTodoHistorial ? (
+                            <>Ver menos <ChevronUp className="h-4 w-4" /></>
+                          ) : (
+                            <>Ver historial completo ({historialCitas.length}) <ChevronDown className="h-4 w-4" /></>
+                          )}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="p-8 text-center text-slate-500 text-sm">
+                    Aún no tienes atenciones registradas en el historial.
                   </div>
                 )}
               </div>
@@ -245,33 +333,21 @@ export default function DashboardFisio() {
           {/* COLUMNA LATERAL: GESTIÓN */}
           <div className="space-y-6">
             
-            {/* ACCIONES RÁPIDAS */}
+            {/* 🚀 NUEVO: MENÚ DE GESTIÓN REORGANIZADO */}
             <div className="bg-white rounded-3xl p-6 shadow-sm border border-slate-100">
               <h3 className="font-bold text-[#0A1E3D] mb-4">Gestión</h3>
               <div className="space-y-3">
-                <button className="w-full flex items-center justify-between p-3.5 rounded-xl border border-slate-100 hover:border-[#1A5C3A] hover:bg-[#F8FAF9] transition group">
+                
+                {/* 1. Agenda y Notas Clínicas */}
+                <Link to="/calendario" className="w-full flex items-center justify-between p-3.5 rounded-xl border border-slate-100 hover:border-[#1A5C3A] hover:bg-[#F8FAF9] transition group">
                   <div className="flex items-center gap-3">
-                    <FileText className="h-4 w-4 text-slate-400 group-hover:text-[#1A5C3A]" />
-                    <span className="text-sm font-bold text-slate-600 group-hover:text-[#0A1E3D]">Historial de Pacientes</span>
-                  </div>
-                  <ChevronRight className="h-4 w-4 text-slate-300" />
-                </button>
-                <button className="w-full flex items-center justify-between p-3.5 rounded-xl border border-slate-100 hover:border-[#1A5C3A] hover:bg-[#F8FAF9] transition group">
-                  <div className="flex items-center gap-3">
-                    <Settings className="h-4 w-4 text-slate-400 group-hover:text-[#1A5C3A]" />
-                    <span className="text-sm font-bold text-slate-600 group-hover:text-[#0A1E3D]">Configurar Horarios</span>
-                  </div>
-                  <ChevronRight className="h-4 w-4 text-slate-300" />
-                </button>
-                <Link to="/perfil-fisio" className="w-full flex items-center justify-between p-3.5 rounded-xl border border-slate-100 hover:border-[#1A5C3A] hover:bg-[#F8FAF9] transition group">
-                  <div className="flex items-center gap-3">
-                    <UserCircle className="h-4 w-4 text-slate-400 group-hover:text-[#1A5C3A]" />
-                    <span className="text-sm font-bold text-slate-600 group-hover:text-[#0A1E3D]">Editar Mi Perfil</span>
+                    <Calendar className="h-4 w-4 text-slate-400 group-hover:text-[#1A5C3A]" />
+                    <span className="text-sm font-bold text-slate-600 group-hover:text-[#0A1E3D]">Agenda y Notas Clínicas</span>
                   </div>
                   <ChevronRight className="h-4 w-4 text-slate-300" />
                 </Link>
-                
-                {/* 🌟 Botón Mensajería */}
+
+                {/* 2. Mensajería */}
                 <Link to="/mensajeria" className="w-full flex items-center justify-between p-3.5 rounded-xl border border-slate-100 hover:border-[#1A5C3A] hover:bg-[#F8FAF9] transition group">
                   <div className="flex items-center gap-3">
                     <MessageSquare className="h-4 w-4 text-slate-400 group-hover:text-[#1A5C3A]" />
@@ -280,14 +356,33 @@ export default function DashboardFisio() {
                   <ChevronRight className="h-4 w-4 text-slate-300" />
                 </Link>
 
-                {/* 🌟 Botón Calendario */}
-                <Link to="/calendario" className="w-full flex items-center justify-between p-3.5 rounded-xl border border-slate-100 hover:border-[#1A5C3A] hover:bg-[#F8FAF9] transition group">
+                {/* 3. Mis Pacientes */}
+                <Link to="/pacientes" className="w-full flex items-center justify-between p-3.5 rounded-xl border border-slate-100 hover:border-[#1A5C3A] hover:bg-[#F8FAF9] transition group opacity-60 hover:opacity-100">
                   <div className="flex items-center gap-3">
-                    <Calendar className="h-4 w-4 text-slate-400 group-hover:text-[#1A5C3A]" />
-                    <span className="text-sm font-bold text-slate-600 group-hover:text-[#0A1E3D]">Calendario de citas</span>
+                    <Users className="h-4 w-4 text-slate-400 group-hover:text-[#1A5C3A]" />
+                    <span className="text-sm font-bold text-slate-600 group-hover:text-[#0A1E3D]">Mis Pacientes</span>
                   </div>
                   <ChevronRight className="h-4 w-4 text-slate-300" />
                 </Link>
+
+                {/* 4. Mi Disponibilidad */}
+                <Link to="/disponibilidad" className="w-full flex items-center justify-between p-3.5 rounded-xl border border-slate-100 hover:border-[#1A5C3A] hover:bg-[#F8FAF9] transition group opacity-60 hover:opacity-100">
+                  <div className="flex items-center gap-3">
+                    <Clock className="h-4 w-4 text-slate-400 group-hover:text-[#1A5C3A]" />
+                    <span className="text-sm font-bold text-slate-600 group-hover:text-[#0A1E3D]">Mi Disponibilidad</span>
+                  </div>
+                  <ChevronRight className="h-4 w-4 text-slate-300" />
+                </Link>
+
+                {/* 5. Mi Perfil Público */}
+                <Link to="/perfil-fisio" className="w-full flex items-center justify-between p-3.5 rounded-xl border border-slate-100 hover:border-[#1A5C3A] hover:bg-[#F8FAF9] transition group">
+                  <div className="flex items-center gap-3">
+                    <UserCircle className="h-4 w-4 text-slate-400 group-hover:text-[#1A5C3A]" />
+                    <span className="text-sm font-bold text-slate-600 group-hover:text-[#0A1E3D]">Mi Perfil Público</span>
+                  </div>
+                  <ChevronRight className="h-4 w-4 text-slate-300" />
+                </Link>
+
               </div>
             </div>
 
@@ -298,7 +393,7 @@ export default function DashboardFisio() {
               </div>
               <h3 className="font-bold mb-2 relative z-10">¡Todo al día!</h3>
               <p className="text-sm text-slate-300 relative z-10 leading-relaxed">
-                Recuerda que las citas marcadas como "Completadas" pasan automáticamente al historial de tus pacientes.
+                Recuerda que al completar una cita, podrás redactar sus notas clínicas directamente en la sección de Agenda.
               </p>
             </div>
 
