@@ -8,7 +8,7 @@ import {
 
 export default function DashboardPaciente() {
   const [paciente, setPaciente] = useState<any>(null);
-  const [proximaCita, setProximaCita] = useState<any>(null);
+  const [citasProgramadas, setCitasProgramadas] = useState<any[]>([]); // 🚀 AHORA ES UN ARREGLO
   const [historial, setHistorial] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -16,6 +16,7 @@ export default function DashboardPaciente() {
   const [modalOpen, setModalOpen] = useState(false);
   const [pasoModal, setPasoModal] = useState<'menu' | 'cancelar' | 'reprogramar'>('menu');
   const [procesando, setProcesando] = useState(false);
+  const [citaSeleccionada, setCitaSeleccionada] = useState<any>(null); // 🚀 SABER QUÉ CITA EDITAMOS
   
   // Estados para reprogramar
   const [nuevaFecha, setNuevaFecha] = useState('');
@@ -54,11 +55,11 @@ export default function DashboardPaciente() {
         .order('hora_cita', { ascending: true });
 
       if (citas) {
-        const citasProgramadas = citas.filter(c => c.estado === 'programada' || c.estado === 'agendada');
-        const citasPasadas = citas.filter(c => c.estado !== 'programada' && c.estado !== 'agendada');
+        const programadas = citas.filter(c => c.estado === 'programada' || c.estado === 'agendada');
+        const pasadas = citas.filter(c => c.estado !== 'programada' && c.estado !== 'agendada');
 
-        setProximaCita(citasProgramadas.length > 0 ? citasProgramadas[0] : null);
-        setHistorial(citasPasadas);
+        setCitasProgramadas(programadas); // 🚀 GUARDAMOS TODAS LAS FUTURAS
+        setHistorial(pasadas);
       }
     } catch (error) {
       console.error("Error cargando dashboard:", error);
@@ -76,17 +77,16 @@ export default function DashboardPaciente() {
 
   // === LÓGICA DE CANCELACIÓN ===
   const confirmarCancelacion = async () => {
-    if (!proximaCita) return;
+    if (!citaSeleccionada) return;
     setProcesando(true);
     try {
       const { error } = await supabase
         .from('citas')
         .update({ estado: 'cancelada' })
-        .eq('id', proximaCita.id);
+        .eq('id', citaSeleccionada.id);
       
       if (error) throw error;
       
-      // Recargar datos
       await cargarDatosDashboard();
       setModalOpen(false);
     } catch (error) {
@@ -99,7 +99,7 @@ export default function DashboardPaciente() {
 
   // === LÓGICA DE REPROGRAMACIÓN ===
   const confirmarReprogramacion = async () => {
-    if (!proximaCita || !nuevaFecha || !nuevaHora) return;
+    if (!citaSeleccionada || !nuevaFecha || !nuevaHora) return;
     setProcesando(true);
     try {
       const { error } = await supabase
@@ -108,15 +108,13 @@ export default function DashboardPaciente() {
           fecha_cita: nuevaFecha, 
           hora_cita: nuevaHora 
         })
-        .eq('id', proximaCita.id);
+        .eq('id', citaSeleccionada.id);
       
       if (error) throw error;
       
-      // Recargar datos
       await cargarDatosDashboard();
       setModalOpen(false);
       
-      // Limpiar campos
       setNuevaFecha('');
       setNuevaHora('');
     } catch (error) {
@@ -127,6 +125,12 @@ export default function DashboardPaciente() {
     }
   };
 
+  const abrirModalCita = (cita: any) => {
+    setCitaSeleccionada(cita);
+    setPasoModal('menu');
+    setModalOpen(true);
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-[#F4F7FB] flex items-center justify-center">
@@ -135,7 +139,6 @@ export default function DashboardPaciente() {
     );
   }
 
-  // Obtener fecha de hoy para el mínimo del input date
   const hoyStr = new Date().toISOString().split('T')[0];
 
   return (
@@ -155,64 +158,65 @@ export default function DashboardPaciente() {
           {/* COLUMNA PRINCIPAL (Izquierda) */}
           <div className="lg:col-span-2 space-y-8">
             
-            {/* SECCIÓN: PRÓXIMA CITA */}
+            {/* SECCIÓN: PRÓXIMAS CITAS */}
             <section>
               <h2 className="text-lg font-bold text-[#0A1E3D] mb-4 flex items-center gap-2">
-                <Calendar className="h-5 w-5 text-[#1A5C3A]" /> Tu próxima cita
+                <Calendar className="h-5 w-5 text-[#1A5C3A]" /> Tus próximas citas
               </h2>
               
-              {proximaCita ? (
-                <div className="bg-white rounded-3xl p-6 md:p-8 shadow-sm border border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-6 transition-all hover:shadow-md">
-                  <div className="space-y-4">
-                    <div className="inline-flex items-center gap-2 bg-[#E8F5EE] text-[#1A6645] px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wide">
-                      {proximaCita.modalidad === 'domicilio' ? <MapPin className="h-3.5 w-3.5" /> : <Video className="h-3.5 w-3.5" />}
-                      {proximaCita.modalidad === 'domicilio' ? 'A Domicilio' : 'Videollamada'}
-                    </div>
-                    
-                    <div>
-                      <h3 className="text-2xl font-extrabold text-[#0A1E3D] capitalize">
-                        {formatearFecha(proximaCita.fecha_cita)}
-                      </h3>
-                      <p className="text-slate-500 font-medium flex items-center gap-2 mt-1">
-                        <Clock className="h-4 w-4" /> {proximaCita.hora_cita} hrs (50 min)
-                      </p>
-                    </div>
+              {citasProgramadas.length > 0 ? (
+                <div className="space-y-4">
+                  {citasProgramadas.map((cita) => (
+                    <div key={cita.id} className="bg-white rounded-3xl p-6 md:p-8 shadow-sm border border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-6 transition-all hover:shadow-md">
+                      <div className="space-y-4">
+                        <div className="inline-flex items-center gap-2 bg-[#E8F5EE] text-[#1A6645] px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wide">
+                          {cita.modalidad === 'domicilio' ? <MapPin className="h-3.5 w-3.5" /> : <Video className="h-3.5 w-3.5" />}
+                          {cita.modalidad === 'domicilio' ? 'A Domicilio' : 'Videollamada'}
+                        </div>
+                        
+                        <div>
+                          <h3 className="text-xl md:text-2xl font-extrabold text-[#0A1E3D] capitalize">
+                            {formatearFecha(cita.fecha_cita)}
+                          </h3>
+                          <p className="text-slate-500 font-medium flex items-center gap-2 mt-1">
+                            <Clock className="h-4 w-4" /> {cita.hora_cita} hrs (50 min)
+                          </p>
+                        </div>
 
-                    <div className="flex items-center gap-3 pt-2">
-                      <div className="h-10 w-10 bg-slate-100 rounded-full flex items-center justify-center">
-                        <User className="h-5 w-5 text-slate-400" />
+                        <div className="flex items-center gap-3 pt-2">
+                          <div className="h-10 w-10 bg-slate-100 rounded-full flex items-center justify-center">
+                            <User className="h-5 w-5 text-slate-400" />
+                          </div>
+                          <div>
+                            <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">Especialista</p>
+                            <p className="text-sm font-bold text-[#0A1E3D]">
+                              {cita.fisioterapeutas?.nombres} {cita.fisioterapeutas?.apellidos}
+                            </p>
+                          </div>
+                        </div>
                       </div>
-                      <div>
-                        <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">Especialista</p>
-                        <p className="text-sm font-bold text-[#0A1E3D]">
-                          {proximaCita.fisioterapeutas?.nombres} {proximaCita.fisioterapeutas?.apellidos}
-                        </p>
+
+                      <div className="flex flex-col gap-3 min-w-[160px]">
+                        {cita.modalidad === 'videollamada' ? (
+                          <button className="w-full bg-[#1A5C3A] hover:bg-[#124229] text-white px-5 py-3 rounded-xl font-bold text-sm transition shadow-sm flex items-center justify-center gap-2">
+                            <Video className="h-4 w-4" /> Entrar a sala
+                          </button>
+                        ) : (
+                          <div className="w-full bg-slate-50 text-slate-600 px-5 py-3 rounded-xl font-bold text-sm text-center border border-slate-200 flex items-center justify-center gap-2">
+                            <CheckCircle2 className="h-4 w-4" /> Confirmada
+                          </div>
+                        )}
+                        
+                        {/* BOTÓN PARA ABRIR MODAL CON LA CITA ESPECÍFICA */}
+                        <button 
+                          onClick={() => abrirModalCita(cita)}
+                          className="w-full text-slate-400 hover:text-[#0A1E3D] font-semibold text-xs transition"
+                        >
+                          Reprogramar o cancelar
+                        </button>
                       </div>
                     </div>
-                  </div>
-
-                  <div className="flex flex-col gap-3 min-w-[160px]">
-                    {proximaCita.modalidad === 'videollamada' ? (
-                      <button className="w-full bg-[#1A5C3A] hover:bg-[#124229] text-white px-5 py-3 rounded-xl font-bold text-sm transition shadow-sm flex items-center justify-center gap-2">
-                        <Video className="h-4 w-4" /> Entrar a sala
-                      </button>
-                    ) : (
-                      <div className="w-full bg-slate-50 text-slate-600 px-5 py-3 rounded-xl font-bold text-sm text-center border border-slate-200 flex items-center justify-center gap-2">
-                        <CheckCircle2 className="h-4 w-4" /> Confirmada
-                      </div>
-                    )}
-                    
-                    {/* BOTÓN PARA ABRIR MODAL */}
-                    <button 
-                      onClick={() => {
-                        setPasoModal('menu');
-                        setModalOpen(true);
-                      }}
-                      className="w-full text-slate-400 hover:text-[#0A1E3D] font-semibold text-xs transition"
-                    >
-                      Reprogramar o cancelar
-                    </button>
-                  </div>
+                  ))}
                 </div>
               ) : (
                 <div className="bg-white rounded-3xl p-8 border border-dashed border-slate-300 text-center flex flex-col items-center justify-center gap-4">
@@ -295,7 +299,6 @@ export default function DashboardPaciente() {
                   <ChevronRight className="h-4 w-4 text-slate-300 group-hover:text-[#1A5C3A] transition" />
                 </Link>
 
-                {/* NUEVO BOTÓN DE MENSAJERÍA */}
                 <Link to="/mensajeria" className="w-full flex items-center justify-between p-4 rounded-xl border border-slate-100 hover:border-[#1A5C3A] hover:bg-[#F8FAF9] transition group">
                   <div className="flex items-center gap-3">
                     <div className="bg-slate-50 group-hover:bg-white p-2 rounded-lg transition">
@@ -325,7 +328,7 @@ export default function DashboardPaciente() {
       {/* ========================================================= */}
       {/* MODAL PARA REPROGRAMAR / CANCELAR                         */}
       {/* ========================================================= */}
-      {modalOpen && (
+      {modalOpen && citaSeleccionada && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white w-full max-w-md rounded-3xl shadow-2xl overflow-hidden animate-fadeIn slide-down">
             
@@ -347,7 +350,7 @@ export default function DashboardPaciente() {
             {/* PASO 1: MENÚ DE OPCIONES */}
             {pasoModal === 'menu' && (
               <div className="p-6 space-y-4">
-                <p className="text-slate-500 text-sm mb-2">¿Qué deseas hacer con tu cita agendada para el <strong className="text-slate-700">{proximaCita?.fecha_cita} a las {proximaCita?.hora_cita}</strong>?</p>
+                <p className="text-slate-500 text-sm mb-2">¿Qué deseas hacer con tu cita agendada para el <strong className="text-slate-700">{citaSeleccionada.fecha_cita} a las {citaSeleccionada.hora_cita}</strong>?</p>
                 
                 <button 
                   onClick={() => setPasoModal('reprogramar')}
@@ -423,7 +426,7 @@ export default function DashboardPaciente() {
                     />
                   </div>
 
-                  {/* Selector de Hora (Simulando la disponibilidad del fisio) */}
+                  {/* Selector de Hora */}
                   {nuevaFecha && (
                     <div className="space-y-2 animate-fadeIn">
                       <label className="text-xs font-bold text-slate-500 uppercase tracking-wider pl-1">Horarios Disponibles</label>
