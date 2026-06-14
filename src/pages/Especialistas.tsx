@@ -62,7 +62,6 @@ export default function Especialistas() {
 
       if (fisios) {
         const mapeados = fisios.map((f: any) => {
-          // Contamos las citas que ya fueron completadas por este fisio
           const citasCompletadas = f.citas?.filter((c: any) => c.estado === 'completada').length || 0;
           
           return {
@@ -113,13 +112,13 @@ export default function Especialistas() {
     }
   };
 
-  // 🚀 NUEVA LÓGICA: Manejar el clic en el botón de enviar mensaje
+  // 🚀 ESTA ES LA FUNCIÓN QUE FALTABA
   const handleMensaje = async (fisio: any) => {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) {
       navigate('/login');
     } else {
-      // Navegamos a mensajería y pasamos los datos del fisio en el "state" de la ruta
+      // Lleva al usuario a mensajería y le pasa los datos del fisio seleccionado
       navigate('/mensajeria', { 
         state: { 
           nuevoContacto: {
@@ -355,11 +354,11 @@ export default function Especialistas() {
                         Ver perfil
                       </button>
                       
-                      {/* 🚀 BOTÓN MODIFICADO PARA MANDAR MENSAJE */}
+                      {/* 🚀 BOTÓN CON LA FUNCIÓN YA VINCULADA */}
                       <button 
                         onClick={() => handleMensaje(fisio)}
                         title="Enviar mensaje al especialista"
-                        className="h-[42px] w-[42px] border border-slate-200 rounded-xl flex items-center justify-center text-slate-400 hover:text-white hover:bg-[#1A5C3A] hover:border-[#1A5C3A] transition-all flex-shrink-0"
+                        className="h-[42px] w-[42px] border border-slate-200 rounded-xl flex items-center justify-center text-slate-400 hover:text-white hover:bg-[#1A5C3A] hover:border-[#1A5C3A] transition-all flex-shrink-0 cursor-pointer"
                       >
                         <MessageSquare className="h-4 w-4" />
                       </button>
@@ -380,7 +379,9 @@ export default function Especialistas() {
 
       {/* FOOTER */}
       <footer className="bg-[#0A1E3D] text-slate-400 pt-16 pb-8 mt-20 w-full">
-         {/* ... El footer lo mantienes igual que antes ... */}
+         <div className="max-w-7xl mx-auto px-5 sm:px-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10 mb-12">
+           {/* Contenido del footer normal */}
+         </div>
       </footer>
     </div>
   );
