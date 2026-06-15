@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Activity, Menu, X, LayoutDashboard, LogOut } from 'lucide-react';
+import { Activity, Menu, X, LayoutDashboard, LogOut, Bell } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
 export default function Navbar() {
@@ -11,6 +11,9 @@ export default function Navbar() {
   // Estados para la sesión
   const [user, setUser] = useState<any>(null);
   const [rol, setRol] = useState<'paciente' | 'fisio' | null>(null);
+  
+  // 🚀 NUEVO: Estado para la alerta de cita
+  const [alertaCita, setAlertaCita] = useState<any>(null);
   
   const isSelected = (path: string) => location.pathname === path;
 
@@ -24,7 +27,6 @@ export default function Navbar() {
     return true;
   });
 
-  // Función para cerrar el menú móvil al hacer clic en un enlace
   const closeMenu = () => setIsOpen(false);
 
   // EFECTO DE AUTENTICACIÓN
@@ -43,6 +45,7 @@ export default function Navbar() {
         determinarRol(session.user.id);
       } else {
         setRol(null);
+        setAlertaCita(null); // Limpiar alerta al salir
       }
     });
 
@@ -60,10 +63,40 @@ export default function Navbar() {
       setRol('fisio');
     } else {
       setRol('paciente');
+      checkProximaCita(userId); // 🚀 Buscamos si hay cita próxima
     }
   };
 
-  // 🚀 MEJORA: Ventana de confirmación antes de cerrar sesión
+  // 🚀 NUEVA FUNCIÓN: Verificar si hay una cita en menos de 24 horas
+  const checkProximaCita = async (userId: string) => {
+    const { data } = await supabase
+      .from('citas')
+      .select('fecha_cita, hora_cita')
+      .eq('paciente_id', userId)
+      .eq('estado', 'programada');
+
+    if (data && data.length > 0) {
+      const now = new Date();
+      let closestCita = null;
+      let minDiff = Infinity;
+
+      data.forEach(cita => {
+        // Aseguramos un formato Date válido combinando fecha y hora
+        const citaDate = new Date(`${cita.fecha_cita}T${cita.hora_cita}`);
+        const diffMs = citaDate.getTime() - now.getTime();
+        const diffHours = diffMs / (1000 * 60 * 60);
+
+        // Si la cita es en el futuro y falta 24 hrs o menos
+        if (diffHours > 0 && diffHours <= 24 && diffHours < minDiff) {
+          minDiff = diffHours;
+          closestCita = { ...cita, horasRestantes: Math.ceil(diffHours) };
+        }
+      });
+
+      if (closestCita) setAlertaCita(closestCita);
+    }
+  };
+
   const handleLogout = async () => {
     if (window.confirm('¿Estás seguro de que deseas cerrar sesión?')) {
       await supabase.auth.signOut();
@@ -103,8 +136,20 @@ export default function Navbar() {
         {/* Acciones Desktop */}
         <div className="hidden lg:flex items-center gap-4">
           {user ? (
-            // VISTA LOGUEADO: Botones de Panel y Salir Mejorado
             <div className="flex items-center gap-3">
+              
+              {/* 🚀 NOTIFICACIÓN DE CITA (Solo Pacientes) */}
+              {alertaCita && rol === 'paciente' && (
+                <Link 
+                  to="/dashboard-paciente"
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-bold text-amber-700 bg-amber-50 border border-amber-200 hover:bg-amber-100 transition-all shadow-sm"
+                  title={`Tienes una cita el ${alertaCita.fecha_cita} a las ${alertaCita.hora_cita}`}
+                >
+                  <Bell className="h-4 w-4 animate-bounce" />
+                  Cita en {alertaCita.horasRestantes}h
+                </Link>
+              )}
+
               <Link 
                 to={rol === 'fisio' ? '/dashboard-fisio' : '/dashboard-paciente'}
                 className="flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-bold text-slate-600 bg-slate-50 hover:bg-slate-100 hover:text-[#0A1E3D] transition-all border border-slate-200"
@@ -113,7 +158,6 @@ export default function Navbar() {
                 Mi Panel
               </Link>
               
-              {/* Botón Salir pulido estilo SaaS */}
               <button 
                 onClick={handleLogout}
                 className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-bold text-red-600 bg-red-50 border border-red-100 hover:bg-red-100/60 hover:border-red-200 transition-all shadow-sm"
@@ -123,7 +167,6 @@ export default function Navbar() {
               </button>
             </div>
           ) : (
-            // VISTA VISITANTE
             <>
               <Link 
                 to="/login"
@@ -179,6 +222,18 @@ export default function Navbar() {
             <div className="grid grid-cols-2 gap-3 mt-2">
               {user ? (
                 <>
+                  {/* 🚀 NOTIFICACIÓN DE CITA MÓVIL (Solo Pacientes) */}
+                  {alertaCita && rol === 'paciente' && (
+                    <Link 
+                      to="/dashboard-paciente"
+                      onClick={closeMenu}
+                      className="col-span-2 flex justify-center items-center gap-2 bg-amber-50 border border-amber-200 text-amber-700 px-4 py-3.5 rounded-xl text-sm font-bold hover:bg-amber-100 transition shadow-sm"
+                    >
+                      <Bell className="h-5 w-5 animate-bounce" />
+                      ¡Tienes una cita en {alertaCita.horasRestantes}h!
+                    </Link>
+                  )}
+
                   <Link 
                     to={rol === 'fisio' ? '/dashboard-fisio' : '/dashboard-paciente'}
                     onClick={closeMenu}
