@@ -44,7 +44,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
         <Route path="/mensajeria" element={<Mensajeria />} />
         <Route path="/disponibilidad" element={<Disponibilidad />} />
         <Route path="/pacientes" element={<Pacientes />} />
-        <Routes>: <Route path="/mi-historial" element={<MiHistorial />} />
+        <Route path="/mi-historial" element={<MiHistorial />} />
         
         <Route path="/calendario" element={<Calendario />} />
       </Routes>
