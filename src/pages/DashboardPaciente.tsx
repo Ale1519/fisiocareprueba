@@ -1,29 +1,33 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { 
   Calendar, Clock, MapPin, Video, User, Plus, FileText, ChevronRight, 
-  X, AlertTriangle, CheckCircle2, MessageSquare, ChevronDown, ChevronUp
+  X, AlertTriangle, CheckCircle2, MessageSquare, ChevronDown, ChevronUp, Activity
 } from 'lucide-react';
 
 export default function DashboardPaciente() {
+  const navigate = useNavigate();
   const [paciente, setPaciente] = useState<any>(null);
   const [citasProgramadas, setCitasProgramadas] = useState<any[]>([]);
   const [historial, setHistorial] = useState<any[]>([]);
+  const [ultimoFisio, setUltimoFisio] = useState<any>(null); // Para la acción rápida
   const [loading, setLoading] = useState(true);
   
-  // 🚀 NUEVO: Estado para controlar si mostramos 2 o todas las citas
   const [mostrarTodasCitas, setMostrarTodasCitas] = useState(false);
 
-  // === ESTADOS PARA EL MODAL DE ACCIÓN ===
+  // === ESTADOS PARA EL MODAL DE GESTIÓN (Reprogramar/Cancelar) ===
   const [modalOpen, setModalOpen] = useState(false);
   const [pasoModal, setPasoModal] = useState<'menu' | 'cancelar' | 'reprogramar'>('menu');
   const [procesando, setProcesando] = useState(false);
   const [citaSeleccionada, setCitaSeleccionada] = useState<any>(null);
-  
-  // Estados para reprogramar
   const [nuevaFecha, setNuevaFecha] = useState('');
   const [nuevaHora, setNuevaHora] = useState('');
+
+  // === ESTADOS PARA EL MODAL DE NOTAS CLÍNICAS (Lectura) ===
+  const [modalNotasOpen, setModalNotasOpen] = useState(false);
+  const [cargandoNota, setCargandoNota] = useState(false);
+  const [notaActual, setNotaActual] = useState<any>(null);
 
   const horariosDisponibles = ['09:00', '10:00', '11:00', '12:00', '14:00', '15:00', '16:00', '17:00'];
 
@@ -48,7 +52,7 @@ export default function DashboardPaciente() {
         .from('citas')
         .select(`
           *,
-          fisioterapeutas ( nombres, apellidos )
+          fisioterapeutas ( id, nombres, apellidos )
         `)
         .eq('paciente_id', user.id)
         .order('fecha_cita', { ascending: true })
@@ -60,6 +64,12 @@ export default function DashboardPaciente() {
 
         setCitasProgramadas(programadas);
         setHistorial(pasadas);
+
+        // Buscar el último fisio con el que se atendió para la "Acción Rápida"
+        const ultimaCompletada = pasadas.reverse().find(c => c.estado === 'completada');
+        if (ultimaCompletada) {
+          setUltimoFisio(ultimaCompletada.fisioterapeutas);
+        }
       }
     } catch (error) {
       console.error("Error cargando dashboard:", error);
@@ -75,21 +85,16 @@ export default function DashboardPaciente() {
     return fecha.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' });
   };
 
+  // === LÓGICA DE REPROGRAMACIÓN / CANCELACIÓN ===
   const confirmarCancelacion = async () => {
     if (!citaSeleccionada) return;
     setProcesando(true);
     try {
-      const { error } = await supabase
-        .from('citas')
-        .update({ estado: 'cancelada' })
-        .eq('id', citaSeleccionada.id);
-      
+      const { error } = await supabase.from('citas').update({ estado: 'cancelada' }).eq('id', citaSeleccionada.id);
       if (error) throw error;
-      
       await cargarDatosDashboard();
       setModalOpen(false);
     } catch (error) {
-      console.error("Error al cancelar:", error);
       alert("Hubo un error al cancelar la cita.");
     } finally {
       setProcesando(false);
@@ -100,23 +105,13 @@ export default function DashboardPaciente() {
     if (!citaSeleccionada || !nuevaFecha || !nuevaHora) return;
     setProcesando(true);
     try {
-      const { error } = await supabase
-        .from('citas')
-        .update({ 
-          fecha_cita: nuevaFecha, 
-          hora_cita: nuevaHora 
-        })
-        .eq('id', citaSeleccionada.id);
-      
+      const { error } = await supabase.from('citas').update({ fecha_cita: nuevaFecha, hora_cita: nuevaHora }).eq('id', citaSeleccionada.id);
       if (error) throw error;
-      
       await cargarDatosDashboard();
       setModalOpen(false);
-      
       setNuevaFecha('');
       setNuevaHora('');
     } catch (error) {
-      console.error("Error al reprogramar:", error);
       alert("Hubo un error al reprogramar la cita.");
     } finally {
       setProcesando(false);
@@ -129,6 +124,28 @@ export default function DashboardPaciente() {
     setModalOpen(true);
   };
 
+  // === LÓGICA PARA VER LAS NOTAS CLÍNICAS ===
+  const abrirModalNotas = async (cita: any) => {
+    setModalNotasOpen(true);
+    setCargandoNota(true);
+    setNotaActual(null);
+    setCitaSeleccionada(cita);
+
+    try {
+      const { data } = await supabase
+        .from('notas_clinicas')
+        .select('diagnostico, plan_tratamiento, ejercicios_recomendados, recomendaciones')
+        .eq('cita_id', cita.id)
+        .maybeSingle();
+
+      setNotaActual(data || { vacio: true });
+    } catch (error) {
+      console.error("Error al cargar notas:", error);
+    } finally {
+      setCargandoNota(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-[#F4F7FB] flex items-center justify-center">
@@ -138,20 +155,41 @@ export default function DashboardPaciente() {
   }
 
   const hoyStr = new Date().toISOString().split('T')[0];
-  
-  // 🚀 LÓGICA PARA CORTAR LA LISTA A 2 CITAS
   const citasAMostrar = mostrarTodasCitas ? citasProgramadas : citasProgramadas.slice(0, 2);
+  const sesionesCompletadas = historial.filter(c => c.estado === 'completada').length;
 
   return (
     <div className="min-h-screen bg-[#F4F7FB] pb-12 relative">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8">
         
-        {/* ENCABEZADO */}
+        {/* ENCABEZADO Y TARJETAS DE RESUMEN */}
         <div className="mb-8">
           <h1 className="text-3xl font-extrabold text-[#0A1E3D]">
             Hola, <span className="text-[#1A5C3A] capitalize">{paciente?.nombre_completo?.split(' ')[0]}</span> 👋
           </h1>
-          <p className="text-slate-500 mt-1">Aquí está el resumen de tu tratamiento y reservas.</p>
+          <p className="text-slate-500 mt-1">Aquí está el resumen de tu tratamiento y progreso.</p>
+        </div>
+
+        {/* 🚀 NUEVO: TARJETAS DE MÉTRICAS */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+          <div className="bg-white rounded-3xl p-6 shadow-sm border border-slate-100 flex items-center justify-between">
+            <div>
+              <p className="text-sm font-bold text-slate-500 mb-1">Próximas Sesiones</p>
+              <p className="text-3xl font-extrabold text-[#0A1E3D]">{citasProgramadas.length}</p>
+            </div>
+            <div className="bg-indigo-50 h-14 w-14 rounded-2xl flex items-center justify-center">
+              <Calendar className="h-6 w-6 text-indigo-600" />
+            </div>
+          </div>
+          <div className="bg-white rounded-3xl p-6 shadow-sm border border-slate-100 flex items-center justify-between">
+            <div>
+              <p className="text-sm font-bold text-slate-500 mb-1">Sesiones Completadas</p>
+              <p className="text-3xl font-extrabold text-[#0A1E3D]">{sesionesCompletadas}</p>
+            </div>
+            <div className="bg-emerald-50 h-14 w-14 rounded-2xl flex items-center justify-center">
+              <CheckCircle2 className="h-6 w-6 text-emerald-600" />
+            </div>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -167,8 +205,6 @@ export default function DashboardPaciente() {
               
               {citasProgramadas.length > 0 ? (
                 <div className="space-y-4">
-                  
-                  {/* RENDERIZAMOS SOLO LAS CITAS A MOSTRAR (2 o todas) */}
                   {citasAMostrar.map((cita) => (
                     <div key={cita.id} className="bg-white rounded-3xl p-6 md:p-8 shadow-sm border border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-6 transition-all hover:shadow-md animate-fadeIn">
                       <div className="space-y-4">
@@ -220,7 +256,6 @@ export default function DashboardPaciente() {
                     </div>
                   ))}
 
-                  {/* 🚀 BOTÓN PARA VER MÁS O VER MENOS */}
                   {citasProgramadas.length > 2 && (
                     <button 
                       onClick={() => setMostrarTodasCitas(!mostrarTodasCitas)}
@@ -233,7 +268,6 @@ export default function DashboardPaciente() {
                       )}
                     </button>
                   )}
-
                 </div>
               ) : (
                 <div className="bg-white rounded-3xl p-8 border border-dashed border-slate-300 text-center flex flex-col items-center justify-center gap-4">
@@ -261,20 +295,30 @@ export default function DashboardPaciente() {
                 {historial.length > 0 ? (
                   <div className="divide-y divide-slate-100">
                     {historial.map((cita) => (
-                      <div key={cita.id} className="p-5 hover:bg-slate-50 transition flex items-center justify-between group">
-                        <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4">
-                          <p className="font-bold text-[#0A1E3D] w-32">{cita.fecha_cita}</p>
+                      <div key={cita.id} className="p-5 hover:bg-slate-50 transition flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <div className="flex flex-col gap-1">
+                          <p className="font-bold text-[#0A1E3D]">{cita.fecha_cita}</p>
                           <p className="text-sm text-slate-500">
                             Fisio. {cita.fisioterapeutas?.nombres} • <span className="capitalize">{cita.modalidad}</span>
                           </p>
                         </div>
+                        
                         <div className="flex items-center gap-3">
                           <span className={`text-xs font-bold px-2.5 py-1 rounded-md capitalize ${
                             cita.estado === 'completada' ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600'
                           }`}>
                             {cita.estado}
                           </span>
-                          <ChevronRight className="h-4 w-4 text-slate-300 group-hover:text-[#1A5C3A] transition" />
+                          
+                          {/* 🚀 NUEVO: BOTÓN PARA LEER INDICACIONES */}
+                          {cita.estado === 'completada' && (
+                            <button 
+                              onClick={() => abrirModalNotas(cita)}
+                              className="text-xs font-bold text-[#1A5C3A] bg-[#E8F5EE] hover:bg-[#d1ebd9] px-3 py-1.5 rounded-lg transition"
+                            >
+                              Ver indicaciones
+                            </button>
+                          )}
                         </div>
                       </div>
                     ))}
@@ -296,12 +340,24 @@ export default function DashboardPaciente() {
             <div className="bg-white rounded-3xl p-6 shadow-sm border border-slate-100">
               <h3 className="font-bold text-[#0A1E3D] mb-4">Acciones rápidas</h3>
               <div className="space-y-3">
+                
+                {/* 🚀 NUEVO: BOTÓN INTELIGENTE DE RE-AGENDAMIENTO */}
+                {ultimoFisio && (
+                  <Link to={`/agendar/${ultimoFisio.id}`} className="w-full bg-[#1A5C3A] text-white p-4 rounded-xl flex items-center justify-between group hover:bg-[#124229] transition shadow-sm mb-2">
+                    <div className="flex flex-col text-left">
+                      <span className="text-[10px] font-bold text-emerald-200 uppercase tracking-wider">Atiéndete de nuevo con</span>
+                      <span className="text-sm font-bold">Fisio. {ultimoFisio.nombres}</span>
+                    </div>
+                    <Plus className="h-5 w-5" />
+                  </Link>
+                )}
+
                 <Link to="/especialistas" className="w-full flex items-center justify-between p-4 rounded-xl border border-slate-100 hover:border-[#1A5C3A] hover:bg-[#F8FAF9] transition group">
                   <div className="flex items-center gap-3">
                     <div className="bg-slate-50 group-hover:bg-white p-2 rounded-lg transition">
-                      <Plus className="h-4 w-4 text-[#1A5C3A]" />
+                      <Search className="h-4 w-4 text-[#1A5C3A]" />
                     </div>
-                    <span className="text-sm font-bold text-slate-600 group-hover:text-[#0A1E3D] transition">Nueva reserva</span>
+                    <span className="text-sm font-bold text-slate-600 group-hover:text-[#0A1E3D] transition">Buscar especialista</span>
                   </div>
                   <ChevronRight className="h-4 w-4 text-slate-300 group-hover:text-[#1A5C3A] transition" />
                 </Link>
@@ -341,6 +397,86 @@ export default function DashboardPaciente() {
           </div>
         </div>
       </div>
+
+      {/* ========================================================= */}
+      {/* MODAL PARA VER INDICACIONES MÉDICAS (Lectura)               */}
+      {/* ========================================================= */}
+      {modalNotasOpen && (
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden animate-fadeIn slide-down flex flex-col max-h-[90vh]">
+            
+            <div className="flex items-center justify-between p-6 border-b border-slate-100 bg-[#F8FAF9] shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="bg-white p-2 rounded-xl shadow-sm text-[#1A5C3A]">
+                  <Activity className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-[#0A1E3D]">Indicaciones Médicas</h3>
+                  <p className="text-xs text-slate-500">Sesión del {citaSeleccionada?.fecha_cita}</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setModalNotasOpen(false)}
+                className="text-slate-400 hover:text-slate-600 bg-white hover:bg-slate-100 p-2 rounded-full transition shadow-sm border border-slate-100"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="p-6 overflow-y-auto scrollbar-thin flex-grow bg-white">
+              {cargandoNota ? (
+                <div className="flex flex-col items-center justify-center py-10">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#1A5C3A] mb-3"></div>
+                  <p className="text-sm text-slate-500">Cargando tu receta...</p>
+                </div>
+              ) : notaActual?.vacio ? (
+                <div className="text-center py-10 opacity-60">
+                  <FileText className="h-10 w-10 text-slate-300 mx-auto mb-3" />
+                  <p className="text-sm text-slate-500">El especialista no registró indicaciones para esta sesión.</p>
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  {notaActual?.diagnostico && (
+                    <div>
+                      <h4 className="text-xs font-extrabold text-[#0A1E3D] uppercase tracking-wider mb-2">Diagnóstico y Evolución</h4>
+                      <p className="text-sm text-slate-700 leading-relaxed bg-slate-50 p-4 rounded-2xl border border-slate-100">{notaActual.diagnostico}</p>
+                    </div>
+                  )}
+                  {notaActual?.plan_tratamiento && (
+                    <div>
+                      <h4 className="text-xs font-extrabold text-[#0A1E3D] uppercase tracking-wider mb-2">Plan de Tratamiento</h4>
+                      <p className="text-sm text-slate-700 leading-relaxed bg-slate-50 p-4 rounded-2xl border border-slate-100">{notaActual.plan_tratamiento}</p>
+                    </div>
+                  )}
+                  {notaActual?.ejercicios_recomendados && (
+                    <div>
+                      <h4 className="text-xs font-extrabold text-[#1A5C3A] uppercase tracking-wider mb-2 flex items-center gap-2">
+                        <CheckCircle2 className="h-4 w-4" /> Ejercicios para Casa
+                      </h4>
+                      <p className="text-sm text-[#1A6645] font-medium leading-relaxed bg-[#E8F5EE] p-4 rounded-2xl border border-[#1A5C3A]/20">{notaActual.ejercicios_recomendados}</p>
+                    </div>
+                  )}
+                  {notaActual?.recomendaciones && (
+                    <div>
+                      <h4 className="text-xs font-extrabold text-[#0A1E3D] uppercase tracking-wider mb-2">Recomendaciones</h4>
+                      <p className="text-sm text-slate-700 leading-relaxed bg-slate-50 p-4 rounded-2xl border border-slate-100">{notaActual.recomendaciones}</p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+            
+            <div className="p-4 border-t border-slate-100 shrink-0 bg-white">
+              <button 
+                onClick={() => setModalNotasOpen(false)}
+                className="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-3.5 rounded-xl transition"
+              >
+                Cerrar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ========================================================= */}
       {/* MODAL PARA REPROGRAMAR / CANCELAR                         */}
