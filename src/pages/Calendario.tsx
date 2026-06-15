@@ -25,6 +25,9 @@ export default function Calendario() {
   const [ejerciciosRecomendados, setEjerciciosRecomendados] = useState('');
   const [recomendaciones, setRecomendaciones] = useState('');
   
+  // 🚀 NUEVO: ESTADO PARA EL LINK DE VIDEOLLAMADA
+  const [linkVirtual, setLinkVirtual] = useState('');
+
   const [guardandoNota, setGuardandoNota] = useState(false);
   const [mensajeExito, setMensajeExito] = useState(false);
 
@@ -38,10 +41,17 @@ export default function Calendario() {
   }, [fechaSeleccionada, rango]);
 
   useEffect(() => {
-    if (citaActiva && citaActiva.estado === 'completada') {
-      cargarNotaClinica(citaActiva.id);
+    if (citaActiva) {
+      if (citaActiva.estado === 'completada') {
+        cargarNotaClinica(citaActiva.id);
+      } else {
+        limpiarCamposNota();
+      }
+      // 🚀 Cargar el link si existe, o dejarlo vacío
+      setLinkVirtual(citaActiva.link_videollamada || '');
     } else {
       limpiarCamposNota();
+      setLinkVirtual('');
     }
   }, [citaActiva]);
 
@@ -92,7 +102,6 @@ export default function Calendario() {
     }
   };
 
-  // CARGAR NOTA DESDE TU NUEVA ESTRUCTURA DE TABLA
   const cargarNotaClinica = async (citaId: string) => {
     try {
       const { data } = await supabase
@@ -133,7 +142,6 @@ export default function Calendario() {
     }
   };
 
-  // GUARDAR O ACTUALIZAR LAS 4 COLUMNAS EN SUPABASE
   const guardarNota = async () => {
     if (!citaActiva) return;
     setGuardandoNota(true);
@@ -285,10 +293,50 @@ export default function Calendario() {
 
               {/* Modo Pendiente vs Modo Completado */}
               {citaActiva.estado === 'programada' ? (
-                <div className="flex-grow flex flex-col items-center justify-center text-center space-y-4 py-12">
-                  <div className="h-14 w-16 bg-blue-50 text-blue-500 rounded-full flex items-center justify-center"><AlertCircle className="h-6 w-6" /></div>
+                <div className="flex-grow flex flex-col items-center justify-center text-center space-y-4 py-8">
+                  <div className="h-14 w-16 bg-blue-50 text-blue-500 rounded-full flex items-center justify-center">
+                    <AlertCircle className="h-6 w-6" />
+                  </div>
                   <h3 className="text-base font-bold text-[#0A1E3D]">Sesión en Proceso</h3>
-                  <p className="text-xs text-slate-400 max-w-sm leading-relaxed">Al finalizar la sesión fisioterapéutica con el paciente, haz clic en el botón de abajo para darla por concluida y habilitar la redacción de la historia clínica.</p>
+
+                  {/* 🚀 NUEVO: INPUT PARA LINK DE VIDEOLLAMADA */}
+                  {citaActiva.modalidad === 'videollamada' && (
+                    <div className="w-full max-w-sm bg-slate-50 p-4 rounded-2xl border border-slate-200 mt-2 mb-4">
+                      <label className="text-xs font-bold text-[#0A1E3D] uppercase tracking-wider block mb-2 text-left">
+                        Enlace de la Videollamada (Zoom/Meet)
+                      </label>
+                      <div className="flex gap-2">
+                        <input 
+                          type="text" 
+                          placeholder="https://zoom.us/j/..."
+                          value={linkVirtual}
+                          onChange={(e) => setLinkVirtual(e.target.value)}
+                          className="flex-1 bg-white border border-slate-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-[#1A5C3A]"
+                        />
+                        <button 
+                          onClick={async () => {
+                            try {
+                              await supabase.from('citas').update({ link_videollamada: linkVirtual }).eq('id', citaActiva.id);
+                              // Actualizar el estado local para que se refleje inmediatamente
+                              const citaActualizada = { ...citaActiva, link_videollamada: linkVirtual };
+                              setCitasList(prev => prev.map(c => c.id === citaActiva.id ? citaActualizada : c));
+                              setCitaActiva(citaActualizada);
+                              alert('Enlace guardado. El paciente ya puede acceder a la sala.');
+                            } catch (e) {
+                              alert('Error al guardar el enlace');
+                            }
+                          }}
+                          className="bg-[#0A1E3D] text-white px-4 py-2 rounded-xl text-xs font-bold hover:bg-[#122d5a] transition"
+                        >
+                          Guardar
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  <p className="text-xs text-slate-400 max-w-sm leading-relaxed">
+                    Al finalizar la sesión fisioterapéutica con el paciente, haz clic en el botón de abajo para darla por concluida y habilitar la redacción de la historia clínica.
+                  </p>
                   <button onClick={() => marcarComoCompletada(citaActiva)} className="bg-[#1A5C3A] hover:bg-[#124229] text-white text-xs font-bold px-6 py-3 rounded-xl transition flex items-center gap-2 shadow-sm">
                     <CheckCircle2 className="h-4 w-4" /> Finalizar y Completar Cita
                   </button>
