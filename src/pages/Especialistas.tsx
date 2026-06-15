@@ -15,6 +15,8 @@ import {
   Activity
 } from 'lucide-react';
 
+import { GoogleGenerativeAI } from '@google/generative-ai';
+
 export default function Especialistas() {
   const navigate = useNavigate();
   
@@ -30,6 +32,47 @@ export default function Especialistas() {
   const [distrito, setDistrito] = useState('todos');
   const [especialidad, setEspecialidad] = useState('todas'); 
   const [precioMax, setPrecioMax] = useState(200);
+
+  const [promptIA, setPromptIA] = useState('');
+  const [cargandoIA, setCargandoIA] = useState(false);
+
+  const procesarBusquedaIA = async () => {
+    if (!promptIA.trim()) return;
+    setCargandoIA(true);
+    
+    try {
+      const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_API_KEY);
+      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+
+      const promptText = `
+        Eres el motor de Inteligencia Artificial de una plataforma médica llamada Fisiocare.
+        Tu trabajo es leer el problema del paciente y extraer los parámetros de búsqueda.
+        
+        Texto del paciente: "${promptIA}"
+        
+        Devuelve ÚNICAMENTE un objeto JSON válido con esta estructura exacta, sin texto adicional ni formato markdown:
+        {
+          "especialidad": "El nombre de la especialidad clínica que mejor trate el problema (ej: Traumatología, Neurología, Deportiva, Geriátrica, Pediátrica). Si no estás seguro, devuelve 'todas'",
+          "distrito": "El distrito de Lima mencionado. Si no menciona, devuelve 'todos'",
+          "modalidad": "Si menciona ir a casa, devuelve 'Domicilio'. Si menciona cámara/virtual, devuelve 'Online'. Si no, devuelve 'todos'"
+        }
+      `;
+
+      const result = await model.generateContent(promptText);
+      const responseText = result.response.text().replace(/```json|```/g, '').trim();
+      const parametrosExtraidos = JSON.parse(responseText);
+
+      if (parametrosExtraidos.especialidad) setEspecialidad(parametrosExtraidos.especialidad);
+      if (parametrosExtraidos.distrito) setDistrito(parametrosExtraidos.distrito);
+      if (parametrosExtraidos.modalidad) setModalidad(parametrosExtraidos.modalidad);
+
+    } catch (error) {
+      console.error("Error procesando la IA:", error);
+      alert("Hubo un error conectando con la IA. Intenta de nuevo.");
+    } finally {
+      setCargandoIA(false);
+    }
+  };
   
   // === EFECTO PARA CARGAR DATOS DE SUPABASE ===
   useEffect(() => {
@@ -150,16 +193,26 @@ export default function Especialistas() {
         </div>
 
         {/* BUSCADOR */}
-        <div className="relative bg-white rounded-full shadow-sm border border-slate-200/60 p-1.5 transition-all focus-within:border-blue-400 focus-within:shadow-md focus-within:shadow-blue-50/40">
-          <div className="flex items-center pl-5">
-            <Search className="h-5 w-5 text-slate-400 flex-shrink-0" />
-            <input
-              type="text"
-              placeholder="Buscar por Nombre"
-              value={busqueda}
-              onChange={(e) => setBusqueda(e.target.value)}
-              className="w-full bg-transparent py-2.5 px-3 text-sm focus:outline-none text-slate-700 placeholder-slate-400 font-light"
-            />
+        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-1 rounded-2xl shadow-sm border border-blue-100">
+          <div className="flex flex-col sm:flex-row items-center gap-2 p-2 bg-white rounded-xl">
+            <div className="flex items-center pl-3 w-full">
+              <span className="text-xl mr-2">✨</span>
+              <input
+                type="text"
+                placeholder="Ej: Me esguincé el tobillo jugando fútbol y vivo en Surco..."
+                value={promptIA}
+                onChange={(e) => setPromptIA(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && procesarBusquedaIA()}
+                className="w-full bg-transparent py-2 px-2 text-sm focus:outline-none text-slate-700 placeholder-slate-400"
+              />
+            </div>
+            <button
+              onClick={procesarBusquedaIA}
+              disabled={cargandoIA}
+              className="w-full sm:w-auto px-6 py-2.5 bg-[#0A1E3D] hover:bg-[#122d5a] text-white text-sm font-bold rounded-lg transition disabled:opacity-50 whitespace-nowrap"
+            >
+              {cargandoIA ? 'Analizando...' : 'Buscar con IA'}
+            </button>
           </div>
         </div>
 
