@@ -360,6 +360,17 @@ export default function DashboardPaciente() {
                   </div>
                   <ChevronRight className="h-4 w-4 text-slate-300 group-hover:text-[#1A5C3A] transition" />
                 </Link>
+
+                {/* 🚀 AQUÍ ESTÁ EL NUEVO BOTÓN: MI HISTORIAL CLÍNICO */}
+                <Link to="/mi-historial" className="w-full flex items-center justify-between p-4 rounded-xl border border-slate-100 hover:border-[#1A5C3A] hover:bg-[#F8FAF9] transition group">
+                  <div className="flex items-center gap-3">
+                    <div className="bg-slate-50 group-hover:bg-white p-2 rounded-lg transition">
+                      <FileText className="h-4 w-4 text-[#1A5C3A]" />
+                    </div>
+                    <span className="text-sm font-bold text-slate-600 group-hover:text-[#0A1E3D] transition">Mi historial clínico</span>
+                  </div>
+                  <ChevronRight className="h-4 w-4 text-slate-300 group-hover:text-[#1A5C3A] transition" />
+                </Link>
                 
                 <Link to="/perfil-paciente" className="w-full flex items-center justify-between p-4 rounded-xl border border-slate-100 hover:border-[#1A5C3A] hover:bg-[#F8FAF9] transition group">
                   <div className="flex items-center gap-3">
