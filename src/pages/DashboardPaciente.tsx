@@ -1,13 +1,12 @@
 import { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { 
   Calendar, Clock, MapPin, Video, User, Plus, FileText, ChevronRight, 
-  X, AlertTriangle, CheckCircle2, MessageSquare, ChevronDown, ChevronUp, Activity
+  X, AlertTriangle, CheckCircle2, MessageSquare, ChevronDown, ChevronUp, Activity, Search
 } from 'lucide-react';
 
 export default function DashboardPaciente() {
-  const navigate = useNavigate();
   const [paciente, setPaciente] = useState<any>(null);
   const [citasProgramadas, setCitasProgramadas] = useState<any[]>([]);
   const [historial, setHistorial] = useState<any[]>([]);
