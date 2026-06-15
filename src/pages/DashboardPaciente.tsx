@@ -236,7 +236,18 @@ export default function DashboardPaciente() {
 
                       <div className="flex flex-col gap-3 min-w-[160px]">
                         {cita.modalidad === 'videollamada' ? (
-                          <button className="w-full bg-[#1A5C3A] hover:bg-[#124229] text-white px-5 py-3 rounded-xl font-bold text-sm transition shadow-sm flex items-center justify-center gap-2">
+                          <button 
+                            onClick={() => {
+                              if (cita.link_videollamada) {
+                                // Si hay link, abre una nueva pestaña automáticamente
+                                window.open(cita.link_videollamada, '_blank');
+                              } else {
+                                // Si el fisio aún no lo pone, le avisa con un cuadro de diálogo simple
+                                alert('Tu especialista aún no ha agregado el enlace para esta sesión. Por favor, revisa nuevamente más cerca de la hora de tu cita.');
+                              }
+                            }}
+                            className="w-full bg-[#1A5C3A] hover:bg-[#124229] text-white px-5 py-3 rounded-xl font-bold text-sm transition shadow-sm flex items-center justify-center gap-2"
+                          >
                             <Video className="h-4 w-4" /> Entrar a sala
                           </button>
                         ) : (
