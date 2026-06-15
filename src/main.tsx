@@ -18,6 +18,7 @@ import PerfilFisio from './pages/PerfilFisio';
 import Mensajeria from './pages/Mensajeria';
 import Calendario from './pages/Calendario';
 import Pacientes from './pages/Pacientes';
+import MiHistorial from './pages/MiHistorial';
 import Disponibilidad from './pages/Disponibilidad';
 import './index.css'
 
@@ -43,6 +44,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
         <Route path="/mensajeria" element={<Mensajeria />} />
         <Route path="/disponibilidad" element={<Disponibilidad />} />
         <Route path="/pacientes" element={<Pacientes />} />
+        <Routes>: <Route path="/mi-historial" element={<MiHistorial />} />
         
         <Route path="/calendario" element={<Calendario />} />
       </Routes>
