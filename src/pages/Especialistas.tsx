@@ -36,18 +36,18 @@ export default function Especialistas() {
   const [promptIA, setPromptIA] = useState('');
   const [cargandoIA, setCargandoIA] = useState(false);
 
-  // 🚀 NLP LOCAL: Análisis de texto sin depender de Google API
+  // 🚀 NLP LOCAL MEJORADO: Ahora entiende precios y modalidades correctamente
   const procesarBusquedaIA = async () => {
     if (!promptIA.trim()) return;
     setCargandoIA(true);
     
     try {
-      // 1. Simular "tiempo de pensamiento" para efecto visual (1.2 segundos)
+      // Simular "tiempo de pensamiento" (1.2 segundos)
       await new Promise(resolve => setTimeout(resolve, 1200));
 
-      const texto = promptIA.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, ""); // Quitar tildes para mejor búsqueda
+      const texto = promptIA.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, ""); 
       
-      // 2. Extraer Especialidad
+      // 1. Extraer Especialidad
       let espDetectada = "todas";
       if (/deporte|futbol|correr|atleta|lesion deportiva/.test(texto)) espDetectada = "Deportiva";
       if (/esguince|hueso|fractura|golpe|traumat|luxacion|tobillo/.test(texto)) espDetectada = "Traumatológica";
@@ -56,10 +56,21 @@ export default function Especialistas() {
       if (/niño|bebe|hijo|pediatr/.test(texto)) espDetectada = "Pediátrica";
       if (/operacion|cirugia|post|operado/.test(texto)) espDetectada = "Postoperatoria";
 
-      // 3. Extraer Modalidad
+      // 2. Extraer Modalidad
       let modDetectada = "todos";
-      if (/casa|domicilio|hogar/.test(texto)) modDetectada = "Domicilio";
-      if (/online|virtual|zoom|camara|pantalla/.test(texto)) modDetectada = "Online";
+      if (/(casa|domicilio|hogar|presencial)/.test(texto)) modDetectada = "Domicilio";
+      else if (/(online|virtual|zoom|camara|pantalla|videollamada)/.test(texto)) modDetectada = "Online";
+
+      // 3. Extraer Precio Máximo (Busca "hasta 100", "maximo 150", "80 soles", "s/100")
+      let precioDetectado = null;
+      const regexPrecio = /(?:maximo|hasta|tope|menos de)\s*(?:s\/\.?\s*)?(\d+)|(?:s\/\.?\s*)(\d+)|\b(\d+)\s*soles\b/;
+      const matchPrecio = texto.match(regexPrecio);
+      if (matchPrecio) {
+        const numero = parseInt(matchPrecio[1] || matchPrecio[2] || matchPrecio[3], 10);
+        if (!isNaN(numero)) {
+          precioDetectado = numero;
+        }
+      }
 
       // 4. Extraer Distrito
       let distDetectado = "todos";
@@ -71,24 +82,27 @@ export default function Especialistas() {
       for (const d of distritosComunes) {
         if (texto.includes(d)) {
           distDetectado = d.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
-          // Ajustes específicos para que coincida exacto con el Select
           if (distDetectado === "Borja") distDetectado = "San Borja";
           if (distDetectado === "Molina") distDetectado = "La Molina";
-          break; // Tomar el primero que encuentre
+          break; 
         }
       }
 
-      // 5. Aplicar los filtros
+      // Aplicar los filtros a la interfaz visual
       if (espDetectada !== "todas") setEspecialidad(espDetectada);
       if (distDetectado !== "todos") setDistrito(distDetectado);
       if (modDetectada !== "todos") setModalidad(modDetectada);
+      
+      if (precioDetectado !== null) {
+        // Aseguramos que el deslizador no se rompa (mínimo 50, máximo 250)
+        setPrecioMax(Math.min(Math.max(precioDetectado, 50), 250));
+      }
 
       // Limpiar barra
       setPromptIA('');
 
     } catch (error) {
       console.error("Error en procesamiento local:", error);
-      alert("Hubo un error procesando tu búsqueda localmente.");
     } finally {
       setCargandoIA(false);
     }
@@ -144,21 +158,28 @@ export default function Especialistas() {
     cargarDatos();
   }, []);
 
-  // === LÓGICA DE FILTRADO EN TIEMPO REAL ===
+  // === LÓGICA DE FILTRADO EN TIEMPO REAL (CORREGIDA) ===
   const especialistasFiltrados = fisiosData.filter(fisio => {
     const texto = busqueda.toLowerCase();
     const coincideTexto = 
       fisio.nombre_completo.toLowerCase().includes(texto) || 
       fisio.especialidades.some((e: string) => e.toLowerCase().includes(texto));
 
+    // Conversión segura de booleanos (por si Supabase trae strings o null)
+    const ofreceDom = fisio.ofrece_domicilio === true || fisio.ofrece_domicilio === 'true';
+    const ofreceVid = fisio.ofrece_videollamada === true || fisio.ofrece_videollamada === 'true';
+
     let coincideModalidad = true;
-    if (modalidad === 'Domicilio') coincideModalidad = fisio.ofrece_domicilio;
-    if (modalidad === 'Online') coincideModalidad = fisio.ofrece_videollamada;
-    if (modalidad === 'ambos') coincideModalidad = fisio.ofrece_domicilio && fisio.ofrece_videollamada;
+    if (modalidad === 'Domicilio') coincideModalidad = ofreceDom;
+    if (modalidad === 'Online') coincideModalidad = ofreceVid;
+    if (modalidad === 'ambos') coincideModalidad = ofreceDom && ofreceVid;
 
     const coincideDistrito = distrito === 'todos' || fisio.distritos.includes(distrito);
     const coincideEspecialidad = especialidad === 'todas' || fisio.especialidades.includes(especialidad);
-    const coincidePrecio = (fisio.precio_sesion || 0) <= precioMax;
+    
+    // Conversión segura de números (por si Supabase trae strings como "100.00")
+    const precioFisio = Number(fisio.precio_sesion) || 0;
+    const coincidePrecio = precioFisio <= precioMax;
 
     return coincideTexto && coincideModalidad && coincideDistrito && coincideEspecialidad && coincidePrecio;
   });
@@ -220,7 +241,7 @@ export default function Especialistas() {
                   value={promptIA}
                   onChange={(e) => setPromptIA(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && procesarBusquedaIA()}
-                  placeholder="Ej: Me esguincé el tobillo jugando fútbol y necesito a alguien a domicilio en Surco..."
+                  placeholder="Ej: Esguince de tobillo en Surco máximo 100 soles a domicilio..."
                   className="w-full bg-slate-50 border border-slate-200 rounded-xl py-4 pl-4 pr-12 text-sm focus:outline-none focus:border-[#1A5C3A] focus:ring-1 focus:ring-[#1A5C3A] transition"
                 />
               </div>
