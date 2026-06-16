@@ -48,9 +48,9 @@ export default function Especialistas() {
         throw new Error("No se encontró la API Key en las variables de entorno de Vercel.");
       }
 
-      // 🚀 CAMBIO 1: Usar gemini-pro (100% estable)
+      // 🚀 SOLUCIÓN DEFINITIVA: Usar el modelo gemini-2.0-flash (El actual estándar de Google)
       const genAI = new GoogleGenerativeAI(apiKey);
-      const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+      const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
 
       const promptText = `
         Eres el buscador de Fisiocare. Lee el texto y extrae los filtros en JSON estricto.
@@ -66,7 +66,7 @@ export default function Especialistas() {
       const result = await model.generateContent(promptText);
       const responseText = result.response.text();
 
-      // 🚀 CAMBIO 2: Extracción Infalible del JSON
+      // Extracción infalible del JSON ignorando texto basura
       const inicioJson = responseText.indexOf('{');
       const finJson = responseText.lastIndexOf('}');
 
@@ -77,15 +77,16 @@ export default function Especialistas() {
       const jsonLimpio = responseText.substring(inicioJson, finJson + 1);
       const parametrosExtraidos = JSON.parse(jsonLimpio);
 
+      // Aplicar filtros a la interfaz
       if (parametrosExtraidos.especialidad) setEspecialidad(parametrosExtraidos.especialidad);
       if (parametrosExtraidos.distrito) setDistrito(parametrosExtraidos.distrito);
       if (parametrosExtraidos.modalidad) setModalidad(parametrosExtraidos.modalidad);
 
-      // Limpiar la barra de búsqueda visual
+      // Limpiar la barra visual al terminar
       setPromptIA('');
 
     } catch (error) {
-      console.error("Error procesando la IA:", error);
+      console.error("Detalles del error IA:", error);
       alert("Hubo un error interpretando tu búsqueda. Revisa la consola o intenta usar los filtros manuales.");
     } finally {
       setCargandoIA(false);
@@ -105,7 +106,7 @@ export default function Especialistas() {
       const { data: espData } = await supabase.from('especialidades').select('*');
       if (espData) setEspecialidadesDB(espData);
 
-      // 3. Traer fisioterapeutas con sus relaciones y citas
+      // 3. Traer fisioterapeutas
       const { data: fisios, error } = await supabase
         .from('fisioterapeutas')
         .select(`
@@ -192,10 +193,8 @@ export default function Especialistas() {
   return (
     <div className="min-h-screen bg-[#FAFAFA] text-slate-800 antialiased font-body flex flex-col justify-between">
       
-      {/* SECCIÓN PRINCIPAL */}
       <main className="max-w-7xl mx-auto px-5 sm:px-8 py-8 space-y-6 w-full flex-grow">
         
-        {/* Encabezado */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 pb-2">
           <div>
             <h1 className="text-3xl font-bold text-[#0A1E3D] font-display tracking-tight">Fisioterapeutas en Lima</h1>
@@ -245,17 +244,14 @@ export default function Especialistas() {
           </div>
         </div>
 
-        {/* CONTENEDOR ASIDE + GRID */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start relative">
         
-          {/* BARRA LATERAL IZQUIERDA */}
           <aside className="lg:col-span-3 bg-white border border-slate-200/70 rounded-2xl p-6 shadow-sm space-y-6 sticky top-[88px] max-h-[calc(100vh-110px)] overflow-y-auto scrollbar-thin">
             <div className="flex items-center gap-2 text-[#0A1E3D] pb-3 border-b border-slate-100">
               <SlidersHorizontal className="h-4 w-4 text-blue-600" />
               <h2 className="text-xs font-bold tracking-wider uppercase text-slate-700">Filtros de Búsqueda</h2>
             </div>
 
-            {/* Tipo de Atención */}
             <div className="space-y-3">
               <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Tipo de Atención</label>
               <div className="space-y-2.5 text-sm text-slate-600">
@@ -281,7 +277,6 @@ export default function Especialistas() {
               </div>
             </div>
 
-            {/* Especialidad */}
             <div className="space-y-2.5">
               <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Especialidad Clínica</label>
               <div className="relative">
@@ -299,7 +294,6 @@ export default function Especialistas() {
               </div>
             </div>
 
-            {/* Distrito de Lima */}
             <div className="space-y-2.5">
               <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Distrito de Lima</label>
               <div className="relative">
@@ -317,7 +311,6 @@ export default function Especialistas() {
               </div>
             </div>
 
-            {/* Rango de Precios */}
             <div className="space-y-3">
               <div className="flex justify-between items-center text-[11px] font-bold text-slate-400 uppercase tracking-wider">
                 <span>Precio máximo</span>
@@ -341,7 +334,6 @@ export default function Especialistas() {
             </button>
           </aside>
 
-          {/* PARTE DERECHA: GRILLA DE TARJETAS */}
           <div className="lg:col-span-9 grid grid-cols-1 md:grid-cols-2 gap-6">
             {loading ? (
                <div className="col-span-full py-12 flex justify-center">
@@ -351,7 +343,6 @@ export default function Especialistas() {
               especialistasFiltrados.map((fisio: any) => (
                 <div key={fisio.id} className="bg-white border border-slate-200/60 rounded-2xl p-5 flex flex-col justify-between relative shadow-sm hover:shadow-md transition">
                   
-                  {/* Encabezado de Tarjeta */}
                   <div>
                     <div className="flex items-start gap-4">
                       <div className="w-[76px] h-[76px] rounded-2xl bg-slate-50 border border-slate-200 flex items-center justify-center text-slate-400 flex-shrink-0 overflow-hidden">
@@ -399,7 +390,6 @@ export default function Especialistas() {
                     </div>
                   </div>
 
-                  {/* Fila Zonas y Modalidades */}
                   <div className="mt-5 pt-4 border-t border-slate-100 space-y-4">
                     <div className="flex items-center gap-3 text-slate-500 text-xs pl-1">
                       <div className="h-6 w-6 bg-[#E8F5EE] text-[#1A6645] rounded-full flex items-center justify-center flex-shrink-0">
@@ -427,7 +417,6 @@ export default function Especialistas() {
                       </div>
                     </div>
 
-                    {/* BOTONES ACCIÓN */}
                     <div className="flex gap-2.5">
                       <button 
                         onClick={() => handleVerPerfil(fisio.id)}
@@ -458,10 +447,8 @@ export default function Especialistas() {
         </div>
       </main>
 
-      {/* FOOTER */}
       <footer className="bg-[#0A1E3D] text-slate-400 pt-16 pb-8 mt-20 w-full">
          <div className="max-w-7xl mx-auto px-5 sm:px-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10 mb-12">
-           {/* Contenido del footer normal */}
          </div>
       </footer>
     </div>
