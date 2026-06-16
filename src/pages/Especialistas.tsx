@@ -16,8 +16,6 @@ import {
   Sparkles
 } from 'lucide-react';
 
-import { GoogleGenerativeAI } from '@google/generative-ai';
-
 export default function Especialistas() {
   const navigate = useNavigate();
   
@@ -38,56 +36,59 @@ export default function Especialistas() {
   const [promptIA, setPromptIA] = useState('');
   const [cargandoIA, setCargandoIA] = useState(false);
 
+  // 🚀 NLP LOCAL: Análisis de texto sin depender de Google API
   const procesarBusquedaIA = async () => {
     if (!promptIA.trim()) return;
     setCargandoIA(true);
     
     try {
-      const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-      if (!apiKey) {
-        throw new Error("No se encontró la API Key en las variables de entorno de Vercel.");
-      }
+      // 1. Simular "tiempo de pensamiento" para efecto visual (1.2 segundos)
+      await new Promise(resolve => setTimeout(resolve, 1200));
 
-      // 🚀 IA REAL CONECTADA: Modelo gemini-2.0-flash
-      const genAI = new GoogleGenerativeAI(apiKey);
-      const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+      const texto = promptIA.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, ""); // Quitar tildes para mejor búsqueda
+      
+      // 2. Extraer Especialidad
+      let espDetectada = "todas";
+      if (/deporte|futbol|correr|atleta|lesion deportiva/.test(texto)) espDetectada = "Deportiva";
+      if (/esguince|hueso|fractura|golpe|traumat|luxacion|tobillo/.test(texto)) espDetectada = "Traumatológica";
+      if (/nervio|paralisis|derrame|neurol/.test(texto)) espDetectada = "Neurológica";
+      if (/mayor|abuelo|anciano|edad|geriatr/.test(texto)) espDetectada = "Geriátrica";
+      if (/niño|bebe|hijo|pediatr/.test(texto)) espDetectada = "Pediátrica";
+      if (/operacion|cirugia|post|operado/.test(texto)) espDetectada = "Postoperatoria";
 
-      const promptText = `
-        Eres el buscador de Fisiocare. Lee el texto y extrae los filtros en JSON estricto.
-        Texto: "${promptIA}"
-        Devuelve SOLO un JSON con:
-        {
-          "especialidad": "Traumatológica, Deportiva, Neurológica, Geriátrica, Pediátrica, Postoperatoria o 'todas'",
-          "distrito": "Distrito de Lima mencionado o 'todos'",
-          "modalidad": "Domicilio, Online o 'todos'"
+      // 3. Extraer Modalidad
+      let modDetectada = "todos";
+      if (/casa|domicilio|hogar/.test(texto)) modDetectada = "Domicilio";
+      if (/online|virtual|zoom|camara|pantalla/.test(texto)) modDetectada = "Online";
+
+      // 4. Extraer Distrito
+      let distDetectado = "todos";
+      const distritosComunes = [
+        "surco", "molina", "miraflores", "san isidro", "barranco", 
+        "borja", "surquillo", "lince", "magdalena", "pueblo libre", "san miguel"
+      ];
+      
+      for (const d of distritosComunes) {
+        if (texto.includes(d)) {
+          distDetectado = d.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+          // Ajustes específicos para que coincida exacto con el Select
+          if (distDetectado === "Borja") distDetectado = "San Borja";
+          if (distDetectado === "Molina") distDetectado = "La Molina";
+          break; // Tomar el primero que encuentre
         }
-      `;
-
-      const result = await model.generateContent(promptText);
-      const responseText = result.response.text();
-
-      // Extracción infalible del JSON ignorando texto basura o formato markdown
-      const inicioJson = responseText.indexOf('{');
-      const finJson = responseText.lastIndexOf('}');
-
-      if (inicioJson === -1 || finJson === -1) {
-        throw new Error("La IA no devolvió una estructura JSON reconocible.");
       }
 
-      const jsonLimpio = responseText.substring(inicioJson, finJson + 1);
-      const parametrosExtraidos = JSON.parse(jsonLimpio);
+      // 5. Aplicar los filtros
+      if (espDetectada !== "todas") setEspecialidad(espDetectada);
+      if (distDetectado !== "todos") setDistrito(distDetectado);
+      if (modDetectada !== "todos") setModalidad(modDetectada);
 
-      // Aplicar filtros a la interfaz
-      if (parametrosExtraidos.especialidad) setEspecialidad(parametrosExtraidos.especialidad);
-      if (parametrosExtraidos.distrito) setDistrito(parametrosExtraidos.distrito);
-      if (parametrosExtraidos.modalidad) setModalidad(parametrosExtraidos.modalidad);
-
-      // Limpiar la barra visual al terminar
+      // Limpiar barra
       setPromptIA('');
 
     } catch (error) {
-      console.error("Detalles del error IA:", error);
-      alert("Hubo un error interpretando tu búsqueda. Revisa la consola o intenta usar los filtros manuales.");
+      console.error("Error en procesamiento local:", error);
+      alert("Hubo un error procesando tu búsqueda localmente.");
     } finally {
       setCargandoIA(false);
     }
@@ -98,15 +99,12 @@ export default function Especialistas() {
     const cargarDatos = async () => {
       setLoading(true);
 
-      // 1. Traer distritos
       const { data: distData } = await supabase.from('distritos').select('*');
       if (distData) setDistritosDB(distData);
 
-      // 2. Traer especialidades
       const { data: espData } = await supabase.from('especialidades').select('*');
       if (espData) setEspecialidadesDB(espData);
 
-      // 3. Traer fisioterapeutas
       const { data: fisios, error } = await supabase
         .from('fisioterapeutas')
         .select(`
@@ -212,7 +210,7 @@ export default function Especialistas() {
           <div className="bg-white rounded-[22px] p-6">
             <div className="flex items-center gap-2 mb-4">
               <Sparkles className="h-5 w-5 text-[#1A5C3A]" />
-              <h3 className="font-bold text-[#0A1E3D]">Búsqueda con Inteligencia Artificial</h3>
+              <h3 className="font-bold text-[#0A1E3D]">Búsqueda Inteligente</h3>
             </div>
             
             <div className="flex flex-col sm:flex-row gap-3">
