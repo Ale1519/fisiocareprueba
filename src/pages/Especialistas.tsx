@@ -16,6 +16,8 @@ import {
   Sparkles
 } from 'lucide-react';
 
+import { GoogleGenerativeAI } from '@google/generative-ai';
+
 export default function Especialistas() {
   const navigate = useNavigate();
   
@@ -36,73 +38,67 @@ export default function Especialistas() {
   const [promptIA, setPromptIA] = useState('');
   const [cargandoIA, setCargandoIA] = useState(false);
 
-  // 🚀 NLP LOCAL MEJORADO: Ahora entiende precios y modalidades correctamente
+  // 🚀 CONEXIÓN IA REAL: gemini-2.5-flash
   const procesarBusquedaIA = async () => {
     if (!promptIA.trim()) return;
     setCargandoIA(true);
     
     try {
-      // Simular "tiempo de pensamiento" (1.2 segundos)
-      await new Promise(resolve => setTimeout(resolve, 1200));
+      const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+      if (!apiKey) {
+        throw new Error("No se encontró la API Key en las variables de entorno.");
+      }
 
-      const texto = promptIA.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, ""); 
-      
-      // 1. Extraer Especialidad
-      let espDetectada = "todas";
-      if (/deporte|futbol|correr|atleta|lesion deportiva/.test(texto)) espDetectada = "Deportiva";
-      if (/esguince|hueso|fractura|golpe|traumat|luxacion|tobillo/.test(texto)) espDetectada = "Traumatológica";
-      if (/nervio|paralisis|derrame|neurol/.test(texto)) espDetectada = "Neurológica";
-      if (/mayor|abuelo|anciano|edad|geriatr/.test(texto)) espDetectada = "Geriátrica";
-      if (/niño|bebe|hijo|pediatr/.test(texto)) espDetectada = "Pediátrica";
-      if (/operacion|cirugia|post|operado/.test(texto)) espDetectada = "Postoperatoria";
+      const genAI = new GoogleGenerativeAI(apiKey);
+      // Usamos Gemini 2.5 Flash (ultrarrápido y con nivel gratuito)
+      const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
-      // 2. Extraer Modalidad
-      let modDetectada = "todos";
-      if (/(casa|domicilio|hogar|presencial)/.test(texto)) modDetectada = "Domicilio";
-      else if (/(online|virtual|zoom|camara|pantalla|videollamada)/.test(texto)) modDetectada = "Online";
+      const promptText = `
+        Eres el buscador inteligente de Fisiocare. El usuario escribirá una frase y tú debes extraer los filtros exactos en formato JSON.
+        
+        Frase del usuario: "${promptIA}"
+        
+        Reglas estrictas de extracción:
+        1. "especialidad": Solo puede ser "Traumatológica", "Deportiva", "Neurológica", "Geriátrica", "Pediátrica", "Postoperatoria" o "todas".
+        2. "distrito": El nombre del distrito mencionado (ej. "Surco", "La Molina", "San Borja") o "todos" si no menciona ninguno.
+        3. "modalidad": Solo puede ser "Domicilio", "Online" o "todos".
+        4. "precio": El número máximo que el usuario está dispuesto a pagar (ej. si dice "hasta 100 soles", pones 100). Si no menciona precio, pon 250.
 
-      // 3. Extraer Precio Máximo (Busca "hasta 100", "maximo 150", "80 soles", "s/100")
-      let precioDetectado = null;
-      const regexPrecio = /(?:maximo|hasta|tope|menos de)\s*(?:s\/\.?\s*)?(\d+)|(?:s\/\.?\s*)(\d+)|\b(\d+)\s*soles\b/;
-      const matchPrecio = texto.match(regexPrecio);
-      if (matchPrecio) {
-        const numero = parseInt(matchPrecio[1] || matchPrecio[2] || matchPrecio[3], 10);
-        if (!isNaN(numero)) {
-          precioDetectado = numero;
+        Responde ÚNICAMENTE con el objeto JSON, sin formato markdown, sin texto adicional:
+        {
+          "especialidad": "valor",
+          "distrito": "valor",
+          "modalidad": "valor",
+          "precio": 250
         }
+      `;
+
+      const result = await model.generateContent(promptText);
+      const responseText = result.response.text();
+
+      // Limpieza robusta del JSON por si la IA añade comillas markdown (```json)
+      const inicioJson = responseText.indexOf('{');
+      const finJson = responseText.lastIndexOf('}');
+
+      if (inicioJson === -1 || finJson === -1) {
+        throw new Error("La IA no devolvió un JSON válido.");
       }
 
-      // 4. Extraer Distrito
-      let distDetectado = "todos";
-      const distritosComunes = [
-        "surco", "molina", "miraflores", "san isidro", "barranco", 
-        "borja", "surquillo", "lince", "magdalena", "pueblo libre", "san miguel"
-      ];
-      
-      for (const d of distritosComunes) {
-        if (texto.includes(d)) {
-          distDetectado = d.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
-          if (distDetectado === "Borja") distDetectado = "San Borja";
-          if (distDetectado === "Molina") distDetectado = "La Molina";
-          break; 
-        }
-      }
+      const jsonLimpio = responseText.substring(inicioJson, finJson + 1);
+      const parametrosExtraidos = JSON.parse(jsonLimpio);
 
-      // Aplicar los filtros a la interfaz visual
-      if (espDetectada !== "todas") setEspecialidad(espDetectada);
-      if (distDetectado !== "todos") setDistrito(distDetectado);
-      if (modDetectada !== "todos") setModalidad(modDetectada);
-      
-      if (precioDetectado !== null) {
-        // Aseguramos que el deslizador no se rompa (mínimo 50, máximo 250)
-        setPrecioMax(Math.min(Math.max(precioDetectado, 50), 250));
-      }
+      // Aplicar filtros a la interfaz visual
+      if (parametrosExtraidos.especialidad) setEspecialidad(parametrosExtraidos.especialidad);
+      if (parametrosExtraidos.distrito) setDistrito(parametrosExtraidos.distrito);
+      if (parametrosExtraidos.modalidad) setModalidad(parametrosExtraidos.modalidad);
+      if (parametrosExtraidos.precio) setPrecioMax(Math.min(Math.max(Number(parametrosExtraidos.precio), 50), 250));
 
-      // Limpiar barra
+      // Limpiar barra de búsqueda
       setPromptIA('');
 
     } catch (error) {
-      console.error("Error en procesamiento local:", error);
+      console.error("Detalles del error IA:", error);
+      alert("La IA está descansando un momento. Intenta buscar de nuevo en unos segundos.");
     } finally {
       setCargandoIA(false);
     }
@@ -158,14 +154,14 @@ export default function Especialistas() {
     cargarDatos();
   }, []);
 
-  // === LÓGICA DE FILTRADO EN TIEMPO REAL (CORREGIDA) ===
+  // === LÓGICA DE FILTRADO EN TIEMPO REAL ===
   const especialistasFiltrados = fisiosData.filter(fisio => {
     const texto = busqueda.toLowerCase();
     const coincideTexto = 
       fisio.nombre_completo.toLowerCase().includes(texto) || 
       fisio.especialidades.some((e: string) => e.toLowerCase().includes(texto));
 
-    // Conversión segura de booleanos (por si Supabase trae strings o null)
+    // Conversión segura de booleanos
     const ofreceDom = fisio.ofrece_domicilio === true || fisio.ofrece_domicilio === 'true';
     const ofreceVid = fisio.ofrece_videollamada === true || fisio.ofrece_videollamada === 'true';
 
@@ -177,7 +173,7 @@ export default function Especialistas() {
     const coincideDistrito = distrito === 'todos' || fisio.distritos.includes(distrito);
     const coincideEspecialidad = especialidad === 'todas' || fisio.especialidades.includes(especialidad);
     
-    // Conversión segura de números (por si Supabase trae strings como "100.00")
+    // Conversión segura de precio
     const precioFisio = Number(fisio.precio_sesion) || 0;
     const coincidePrecio = precioFisio <= precioMax;
 
@@ -226,12 +222,12 @@ export default function Especialistas() {
           </div>
         </div>
 
-        {/* 🤖 BUSCADOR INTELIGENTE (NLP) */}
+        {/* 🤖 BUSCADOR INTELIGENTE (IA REAL) */}
         <div className="bg-gradient-to-r from-[#0A1E3D] to-[#1A5C3A] rounded-3xl p-1 mb-8 shadow-lg">
           <div className="bg-white rounded-[22px] p-6">
             <div className="flex items-center gap-2 mb-4">
               <Sparkles className="h-5 w-5 text-[#1A5C3A]" />
-              <h3 className="font-bold text-[#0A1E3D]">Búsqueda Inteligente</h3>
+              <h3 className="font-bold text-[#0A1E3D]">Búsqueda con Inteligencia Artificial</h3>
             </div>
             
             <div className="flex flex-col sm:flex-row gap-3">
