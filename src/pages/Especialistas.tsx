@@ -12,7 +12,8 @@ import {
   Home as HomeIcon,
   MessageSquare,
   CheckCircle,
-  Activity
+  Activity,
+  Sparkles
 } from 'lucide-react';
 
 import { GoogleGenerativeAI } from '@google/generative-ai';
@@ -31,8 +32,9 @@ export default function Especialistas() {
   const [modalidad, setModalidad] = useState('todos');
   const [distrito, setDistrito] = useState('todos');
   const [especialidad, setEspecialidad] = useState('todas'); 
-  const [precioMax, setPrecioMax] = useState(200);
+  const [precioMax, setPrecioMax] = useState(250);
 
+  // === ESTADOS DE LA IA ===
   const [promptIA, setPromptIA] = useState('');
   const [cargandoIA, setCargandoIA] = useState(false);
 
@@ -59,16 +61,21 @@ export default function Especialistas() {
       `;
 
       const result = await model.generateContent(promptText);
-      const responseText = result.response.text().replace(/```json|```/g, '').trim();
+      let responseText = result.response.text();
+      // Limpieza segura de etiquetas markdown que a veces devuelve Gemini
+      responseText = responseText.replace(/```json/gi, '').replace(/```/g, '').trim();
       const parametrosExtraidos = JSON.parse(responseText);
 
       if (parametrosExtraidos.especialidad) setEspecialidad(parametrosExtraidos.especialidad);
       if (parametrosExtraidos.distrito) setDistrito(parametrosExtraidos.distrito);
       if (parametrosExtraidos.modalidad) setModalidad(parametrosExtraidos.modalidad);
 
+      // Limpiar la barra de búsqueda visual
+      setPromptIA('');
+
     } catch (error) {
       console.error("Error procesando la IA:", error);
-      alert("Hubo un error conectando con la IA. Intenta de nuevo.");
+      alert("Hubo un error interpretando tu búsqueda. Intenta usar los filtros manuales.");
     } finally {
       setCargandoIA(false);
     }
@@ -155,13 +162,11 @@ export default function Especialistas() {
     }
   };
 
-  // 🚀 ESTA ES LA FUNCIÓN QUE FALTABA
   const handleMensaje = async (fisio: any) => {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) {
       navigate('/login');
     } else {
-      // Lleva al usuario a mensajería y le pasa los datos del fisio seleccionado
       navigate('/mensajeria', { 
         state: { 
           nuevoContacto: {
@@ -192,27 +197,40 @@ export default function Especialistas() {
           </div>
         </div>
 
-        {/* BUSCADOR */}
-        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-1 rounded-2xl shadow-sm border border-blue-100">
-          <div className="flex flex-col sm:flex-row items-center gap-2 p-2 bg-white rounded-xl">
-            <div className="flex items-center pl-3 w-full">
-              <span className="text-xl mr-2">✨</span>
-              <input
-                type="text"
-                placeholder="Ej: Me esguincé el tobillo jugando fútbol y vivo en Surco..."
-                value={promptIA}
-                onChange={(e) => setPromptIA(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && procesarBusquedaIA()}
-                className="w-full bg-transparent py-2 px-2 text-sm focus:outline-none text-slate-700 placeholder-slate-400"
-              />
+        {/* 🤖 BUSCADOR INTELIGENTE (NLP) */}
+        <div className="bg-gradient-to-r from-[#0A1E3D] to-[#1A5C3A] rounded-3xl p-1 mb-8 shadow-lg">
+          <div className="bg-white rounded-[22px] p-6">
+            <div className="flex items-center gap-2 mb-4">
+              <Sparkles className="h-5 w-5 text-[#1A5C3A]" />
+              <h3 className="font-bold text-[#0A1E3D]">Búsqueda con Inteligencia Artificial</h3>
             </div>
-            <button
-              onClick={procesarBusquedaIA}
-              disabled={cargandoIA}
-              className="w-full sm:w-auto px-6 py-2.5 bg-[#0A1E3D] hover:bg-[#122d5a] text-white text-sm font-bold rounded-lg transition disabled:opacity-50 whitespace-nowrap"
-            >
-              {cargandoIA ? 'Analizando...' : 'Buscar con IA'}
-            </button>
+            
+            <div className="flex flex-col sm:flex-row gap-3">
+              <div className="relative flex-grow">
+                <input 
+                  type="text" 
+                  value={promptIA}
+                  onChange={(e) => setPromptIA(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && procesarBusquedaIA()}
+                  placeholder="Ej: Me esguincé el tobillo jugando fútbol y necesito a alguien a domicilio en Surco..."
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl py-4 pl-4 pr-12 text-sm focus:outline-none focus:border-[#1A5C3A] focus:ring-1 focus:ring-[#1A5C3A] transition"
+                />
+              </div>
+              
+              <button 
+                onClick={procesarBusquedaIA}
+                disabled={cargandoIA || !promptIA.trim()}
+                className="bg-[#0A1E3D] hover:bg-[#122d5a] text-white px-8 py-4 rounded-xl font-bold text-sm transition disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center min-w-[140px]"
+              >
+                {cargandoIA ? (
+                  <div className="h-5 w-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                ) : (
+                  <>
+                    <Search className="h-4 w-4 mr-2" /> Buscar
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </div>
 
@@ -407,7 +425,6 @@ export default function Especialistas() {
                         Ver perfil
                       </button>
                       
-                      {/* 🚀 BOTÓN CON LA FUNCIÓN YA VINCULADA */}
                       <button 
                         onClick={() => handleMensaje(fisio)}
                         title="Enviar mensaje al especialista"
