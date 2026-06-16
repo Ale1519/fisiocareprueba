@@ -43,28 +43,39 @@ export default function Especialistas() {
     setCargandoIA(true);
     
     try {
-      const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_API_KEY);
-      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+      const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+      if (!apiKey) {
+        throw new Error("No se encontró la API Key en las variables de entorno de Vercel.");
+      }
+
+      // 🚀 CAMBIO 1: Usar gemini-pro (100% estable)
+      const genAI = new GoogleGenerativeAI(apiKey);
+      const model = genAI.getGenerativeModel({ model: "gemini-pro" });
 
       const promptText = `
-        Eres el motor de Inteligencia Artificial de una plataforma médica llamada Fisiocare.
-        Tu trabajo es leer el problema del paciente y extraer los parámetros de búsqueda.
-        
-        Texto del paciente: "${promptIA}"
-        
-        Devuelve ÚNICAMENTE un objeto JSON válido con esta estructura exacta, sin texto adicional ni formato markdown:
+        Eres el buscador de Fisiocare. Lee el texto y extrae los filtros en JSON estricto.
+        Texto: "${promptIA}"
+        Devuelve SOLO un JSON con:
         {
-          "especialidad": "El nombre de la especialidad clínica que mejor trate el problema (ej: Traumatología, Neurología, Deportiva, Geriátrica, Pediátrica). Si no estás seguro, devuelve 'todas'",
-          "distrito": "El distrito de Lima mencionado. Si no menciona, devuelve 'todos'",
-          "modalidad": "Si menciona ir a casa, devuelve 'Domicilio'. Si menciona cámara/virtual, devuelve 'Online'. Si no, devuelve 'todos'"
+          "especialidad": "Traumatológica, Deportiva, Neurológica, Geriátrica, Pediátrica, Postoperatoria o 'todas'",
+          "distrito": "Distrito de Lima mencionado o 'todos'",
+          "modalidad": "Domicilio, Online o 'todos'"
         }
       `;
 
       const result = await model.generateContent(promptText);
-      let responseText = result.response.text();
-      // Limpieza segura de etiquetas markdown que a veces devuelve Gemini
-      responseText = responseText.replace(/```json/gi, '').replace(/```/g, '').trim();
-      const parametrosExtraidos = JSON.parse(responseText);
+      const responseText = result.response.text();
+
+      // 🚀 CAMBIO 2: Extracción Infalible del JSON
+      const inicioJson = responseText.indexOf('{');
+      const finJson = responseText.lastIndexOf('}');
+
+      if (inicioJson === -1 || finJson === -1) {
+        throw new Error("La IA no devolvió una estructura JSON reconocible.");
+      }
+
+      const jsonLimpio = responseText.substring(inicioJson, finJson + 1);
+      const parametrosExtraidos = JSON.parse(jsonLimpio);
 
       if (parametrosExtraidos.especialidad) setEspecialidad(parametrosExtraidos.especialidad);
       if (parametrosExtraidos.distrito) setDistrito(parametrosExtraidos.distrito);
@@ -75,7 +86,7 @@ export default function Especialistas() {
 
     } catch (error) {
       console.error("Error procesando la IA:", error);
-      alert("Hubo un error interpretando tu búsqueda. Intenta usar los filtros manuales.");
+      alert("Hubo un error interpretando tu búsqueda. Revisa la consola o intenta usar los filtros manuales.");
     } finally {
       setCargandoIA(false);
     }
