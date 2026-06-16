@@ -48,7 +48,7 @@ export default function Especialistas() {
         throw new Error("No se encontró la API Key en las variables de entorno de Vercel.");
       }
 
-      // 🚀 SOLUCIÓN DEFINITIVA: Usar el modelo gemini-2.0-flash (El actual estándar de Google)
+      // 🚀 IA REAL CONECTADA: Modelo gemini-2.0-flash
       const genAI = new GoogleGenerativeAI(apiKey);
       const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
 
@@ -66,7 +66,7 @@ export default function Especialistas() {
       const result = await model.generateContent(promptText);
       const responseText = result.response.text();
 
-      // Extracción infalible del JSON ignorando texto basura
+      // Extracción infalible del JSON ignorando texto basura o formato markdown
       const inicioJson = responseText.indexOf('{');
       const finJson = responseText.lastIndexOf('}');
 
