@@ -37,68 +37,68 @@ export default function Especialistas() {
   // === ESTADOS DE LA IA ===
   const [promptIA, setPromptIA] = useState('');
   const [cargandoIA, setCargandoIA] = useState(false);
+  // NUEVO: Estado para guardar los IDs exactos que la IA decida mostrar
+  const [resultadosIAIds, setResultadosIAIds] = useState<string[] | null>(null);
 
-  // 🚀 CONEXIÓN IA REAL: gemini-2.5-flash
+  // 🚀 NUEVA CONEXIÓN IA: "Data-Aware" (Conectada a la base de datos)
   const procesarBusquedaIA = async () => {
     if (!promptIA.trim()) return;
     setCargandoIA(true);
     
     try {
       const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-      if (!apiKey) {
-        throw new Error("No se encontró la API Key en las variables de entorno.");
-      }
+      if (!apiKey) throw new Error("No API Key");
 
       const genAI = new GoogleGenerativeAI(apiKey);
-      // Usamos Gemini 2.5 Flash (ultrarrápido y con nivel gratuito)
       const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
-      const promptText = `
-        Eres el buscador inteligente de Fisiocare. El usuario escribirá una frase y tú debes extraer los filtros exactos en formato JSON.
-        
-        Frase del usuario: "${promptIA}"
-        
-        Reglas estrictas de extracción:
-        1. "especialidad": Solo puede ser "Traumatológica", "Deportiva", "Neurológica", "Geriátrica", "Pediátrica", "Postoperatoria" o "todas".
-        2. "distrito": El nombre del distrito mencionado (ej. "Surco", "La Molina", "San Borja") o "todos" si no menciona ninguno.
-        3. "modalidad": Solo puede ser "Domicilio", "Online" o "todos".
-        4. "precio": El número máximo que el usuario está dispuesto a pagar (ej. si dice "hasta 100 soles", pones 100). Si no menciona precio, pon 250.
+      // 1. Preparamos una versión ligera de nuestra base de datos para pasársela a la IA
+      const baseDeDatosParaIA = fisiosData.map(f => ({
+        id: f.id,
+        nombre: f.nombre_completo,
+        precio: f.precio_sesion,
+        especialidades: f.especialidades,
+        distritos: f.distritos,
+        domicilio: f.ofrece_domicilio,
+        online: f.ofrece_videollamada,
+        rating: f.rating
+      }));
 
-        Responde ÚNICAMENTE con el objeto JSON, sin formato markdown, sin texto adicional:
-        {
-          "especialidad": "valor",
-          "distrito": "valor",
-          "modalidad": "valor",
-          "precio": 250
-        }
+      // 2. El Prompt ahora le da a la IA el poder de analizar los datos directamente
+      const promptText = `
+        Eres el motor de búsqueda inteligente de Fisiocare.
+        A continuación te proporciono un JSON con la base de datos actual de fisioterapeutas:
+        ${JSON.stringify(baseDeDatosParaIA)}
+
+        El usuario ha escrito la siguiente petición: "${promptIA}"
+
+        Tu tarea es actuar como un motor de base de datos. Analiza la petición del usuario (puede pedir "el más caro", "el más barato", "los que atienden en Surco", "el mejor valorado", etc.) y cruza esa información con la base de datos que te di.
+
+        Devuelve ÚNICAMENTE un arreglo JSON con los IDs de los fisioterapeutas que mejor coincidan con la búsqueda. Si pide "el más caro", devuelve solo el ID de ese.
+        No incluyas markdown, ni comillas extra, solo el arreglo puro. Ejemplo de respuesta: ["id-1", "id-2"]
       `;
 
       const result = await model.generateContent(promptText);
       const responseText = result.response.text();
 
-      // Limpieza robusta del JSON por si la IA añade comillas markdown (```json)
-      const inicioJson = responseText.indexOf('{');
-      const finJson = responseText.lastIndexOf('}');
+      // Limpieza del JSON
+      const inicioArr = responseText.indexOf('[');
+      const finArr = responseText.lastIndexOf(']');
 
-      if (inicioJson === -1 || finJson === -1) {
-        throw new Error("La IA no devolvió un JSON válido.");
+      if (inicioArr === -1 || finArr === -1) {
+        throw new Error("La IA no devolvió un arreglo válido.");
       }
 
-      const jsonLimpio = responseText.substring(inicioJson, finJson + 1);
-      const parametrosExtraidos = JSON.parse(jsonLimpio);
+      const jsonLimpio = responseText.substring(inicioArr, finArr + 1);
+      const idsExtraidos = JSON.parse(jsonLimpio);
 
-      // Aplicar filtros a la interfaz visual
-      if (parametrosExtraidos.especialidad) setEspecialidad(parametrosExtraidos.especialidad);
-      if (parametrosExtraidos.distrito) setDistrito(parametrosExtraidos.distrito);
-      if (parametrosExtraidos.modalidad) setModalidad(parametrosExtraidos.modalidad);
-      if (parametrosExtraidos.precio) setPrecioMax(Math.min(Math.max(Number(parametrosExtraidos.precio), 50), 250));
-
-      // Limpiar barra de búsqueda
+      // 3. Aplicamos el resultado directamente
+      setResultadosIAIds(idsExtraidos);
       setPromptIA('');
 
     } catch (error) {
       console.error("Detalles del error IA:", error);
-      alert("La IA está descansando un momento. Intenta buscar de nuevo en unos segundos.");
+      alert("Hubo un error procesando tu búsqueda con la base de datos. Intenta de nuevo.");
     } finally {
       setCargandoIA(false);
     }
@@ -133,7 +133,6 @@ export default function Especialistas() {
       if (fisios) {
         const mapeados = fisios.map((f: any) => {
           const citasCompletadas = f.citas?.filter((c: any) => c.estado === 'completada').length || 0;
-          
           return {
             ...f,
             nombre_completo: `${f.nombres} ${f.apellidos}`,
@@ -156,12 +155,16 @@ export default function Especialistas() {
 
   // === LÓGICA DE FILTRADO EN TIEMPO REAL ===
   const especialistasFiltrados = fisiosData.filter(fisio => {
+    // Si la IA ha devuelto IDs, SOBREESCRIBIMOS todos los filtros manuales y mostramos solo lo que la IA dedujo
+    if (resultadosIAIds !== null) {
+      return resultadosIAIds.includes(fisio.id);
+    }
+
     const texto = busqueda.toLowerCase();
     const coincideTexto = 
       fisio.nombre_completo.toLowerCase().includes(texto) || 
       fisio.especialidades.some((e: string) => e.toLowerCase().includes(texto));
 
-    // Conversión segura de booleanos
     const ofreceDom = fisio.ofrece_domicilio === true || fisio.ofrece_domicilio === 'true';
     const ofreceVid = fisio.ofrece_videollamada === true || fisio.ofrece_videollamada === 'true';
 
@@ -173,12 +176,20 @@ export default function Especialistas() {
     const coincideDistrito = distrito === 'todos' || fisio.distritos.includes(distrito);
     const coincideEspecialidad = especialidad === 'todas' || fisio.especialidades.includes(especialidad);
     
-    // Conversión segura de precio
     const precioFisio = Number(fisio.precio_sesion) || 0;
     const coincidePrecio = precioFisio <= precioMax;
 
     return coincideTexto && coincideModalidad && coincideDistrito && coincideEspecialidad && coincidePrecio;
   });
+
+  const limpiarFiltros = () => {
+    setBusqueda(''); 
+    setModalidad('todos'); 
+    setEspecialidad('todas'); 
+    setDistrito('todos'); 
+    setPrecioMax(250);
+    setResultadosIAIds(null); // Limpiamos también el resultado de la IA
+  };
 
   const handleVerPerfil = async (fisioId: string) => {
     const { data: { session } } = await supabase.auth.getSession();
@@ -195,12 +206,7 @@ export default function Especialistas() {
       navigate('/login');
     } else {
       navigate('/mensajeria', { 
-        state: { 
-          nuevoContacto: {
-            id: fisio.id,
-            nombre: fisio.nombre_completo
-          }
-        } 
+        state: { nuevoContacto: { id: fisio.id, nombre: fisio.nombre_completo } } 
       });
     }
   };
@@ -217,17 +223,24 @@ export default function Especialistas() {
               {loading ? 'Cargando profesionales...' : 
                 especialistasFiltrados.length === 0
                 ? 'No hay profesionales disponibles para esta selección'
-                : `${especialistasFiltrados.length} ${especialistasFiltrados.length === 1 ? 'profesional disponible' : 'profesionales disponibles'} para ti`}
+                : `Mostrando ${especialistasFiltrados.length} resultados ${resultadosIAIds ? 'basados en tu petición a la IA' : ''}`}
             </p>
           </div>
         </div>
 
-        {/* 🤖 BUSCADOR INTELIGENTE (IA REAL) */}
+        {/* 🤖 BUSCADOR INTELIGENTE (IA CONECTADA A DATOS) */}
         <div className="bg-gradient-to-r from-[#0A1E3D] to-[#1A5C3A] rounded-3xl p-1 mb-8 shadow-lg">
           <div className="bg-white rounded-[22px] p-6">
-            <div className="flex items-center gap-2 mb-4">
-              <Sparkles className="h-5 w-5 text-[#1A5C3A]" />
-              <h3 className="font-bold text-[#0A1E3D]">Búsqueda con Inteligencia Artificial</h3>
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
+              <div className="flex items-center gap-2">
+                <Sparkles className="h-5 w-5 text-[#1A5C3A]" />
+                <h3 className="font-bold text-[#0A1E3D]">Búsqueda con Inteligencia Artificial</h3>
+              </div>
+              {resultadosIAIds && (
+                 <span className="bg-blue-50 text-blue-600 text-xs font-bold px-3 py-1 rounded-full border border-blue-200">
+                   Resultados filtrados por IA activa
+                 </span>
+              )}
             </div>
             
             <div className="flex flex-col sm:flex-row gap-3">
@@ -237,7 +250,7 @@ export default function Especialistas() {
                   value={promptIA}
                   onChange={(e) => setPromptIA(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && procesarBusquedaIA()}
-                  placeholder="Ej: Esguince de tobillo en Surco máximo 100 soles a domicilio..."
+                  placeholder="Ej: Dame el fisioterapeuta más caro, o el más barato que atienda a domicilio..."
                   className="w-full bg-slate-50 border border-slate-200 rounded-xl py-4 pl-4 pr-12 text-sm focus:outline-none focus:border-[#1A5C3A] focus:ring-1 focus:ring-[#1A5C3A] transition"
                 />
               </div>
@@ -264,7 +277,7 @@ export default function Especialistas() {
           <aside className="lg:col-span-3 bg-white border border-slate-200/70 rounded-2xl p-6 shadow-sm space-y-6 sticky top-[88px] max-h-[calc(100vh-110px)] overflow-y-auto scrollbar-thin">
             <div className="flex items-center gap-2 text-[#0A1E3D] pb-3 border-b border-slate-100">
               <SlidersHorizontal className="h-4 w-4 text-blue-600" />
-              <h2 className="text-xs font-bold tracking-wider uppercase text-slate-700">Filtros de Búsqueda</h2>
+              <h2 className="text-xs font-bold tracking-wider uppercase text-slate-700">Filtros Manuales</h2>
             </div>
 
             <div className="space-y-3">
@@ -282,7 +295,8 @@ export default function Especialistas() {
                       name="modalidad"
                       checked={modalidad === item.id}
                       onChange={() => setModalidad(item.id)}
-                      className="h-4 w-4 text-[#0F2850] border-slate-300 focus:ring-0 cursor-pointer transition"
+                      disabled={resultadosIAIds !== null}
+                      className="h-4 w-4 text-[#0F2850] border-slate-300 focus:ring-0 cursor-pointer transition disabled:opacity-50"
                     />
                     <span className={`text-xs transition ${modalidad === item.id ? 'font-semibold text-[#0A1E3D]' : 'text-slate-500 group-hover:text-slate-800'}`}>
                       {item.label}
@@ -298,7 +312,8 @@ export default function Especialistas() {
                 <select
                   value={especialidad}
                   onChange={(e) => setEspecialidad(e.target.value)}
-                  className="w-full bg-slate-50/60 border border-slate-200 text-xs py-3 pl-3 pr-10 rounded-xl text-slate-700 focus:outline-none focus:border-blue-300 focus:bg-white appearance-none cursor-pointer font-medium transition"
+                  disabled={resultadosIAIds !== null}
+                  className="w-full bg-slate-50/60 border border-slate-200 text-xs py-3 pl-3 pr-10 rounded-xl text-slate-700 focus:outline-none focus:border-blue-300 focus:bg-white appearance-none cursor-pointer font-medium transition disabled:opacity-50"
                 >
                   <option value="todas">Todas las especialidades</option>
                   {especialidadesDB.map((esp: any) => (
@@ -315,7 +330,8 @@ export default function Especialistas() {
                 <select
                   value={distrito}
                   onChange={(e) => setDistrito(e.target.value)}
-                  className="w-full bg-slate-50/60 border border-slate-200 text-xs py-3 pl-3 pr-10 rounded-xl text-slate-700 focus:outline-none focus:border-blue-300 focus:bg-white appearance-none cursor-pointer font-medium transition"
+                  disabled={resultadosIAIds !== null}
+                  className="w-full bg-slate-50/60 border border-slate-200 text-xs py-3 pl-3 pr-10 rounded-xl text-slate-700 focus:outline-none focus:border-blue-300 focus:bg-white appearance-none cursor-pointer font-medium transition disabled:opacity-50"
                 >
                   <option value="todos">Todos los distritos</option>
                   {distritosDB.map((dist: any) => (
@@ -337,12 +353,13 @@ export default function Especialistas() {
                 max="250"
                 value={precioMax}
                 onChange={(e) => setPrecioMax(Number(e.target.value))}
-                className="w-full h-1.5 bg-slate-100 rounded-lg appearance-none cursor-pointer accent-[#0F2850]"
+                disabled={resultadosIAIds !== null}
+                className="w-full h-1.5 bg-slate-100 rounded-lg appearance-none cursor-pointer accent-[#0F2850] disabled:opacity-50"
               />
             </div>
 
             <button
-              onClick={() => { setBusqueda(''); setModalidad('todos'); setEspecialidad('todas'); setDistrito('todos'); setPrecioMax(250); }}
+              onClick={limpiarFiltros}
               className="w-full bg-slate-50 hover:bg-red-50 border border-slate-200 hover:border-red-200 text-slate-500 hover:text-red-600 py-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5"
             >
               ✕ Limpiar filtros
@@ -454,7 +471,7 @@ export default function Especialistas() {
             ) : (
               <div className="col-span-full bg-slate-50 rounded-2xl border border-dashed border-slate-200 p-12 text-center">
                 <p className="text-sm text-slate-400 font-light">
-                  No encontramos fisioterapeutas que coincidan con los filtros seleccionados.
+                  No encontramos fisioterapeutas que coincidan con la búsqueda.
                 </p>
               </div>
             )}
