@@ -75,7 +75,7 @@ export default function Especialistas() {
 
         El usuario ha escrito la siguiente petición: "${promptIA}"
 
-        Tu tarea es actuar como un motor de base de datos. Analiza la petición del usuario (puede pedir "el más caro", "el más barato", "los que atienden en Surco", "el mejor valorado", etc.) y cruza esa información con la base de datos que te di.
+        Tu tarea es actuar como un motor de base de datos. Analiza la petición del usuario (Ejemplo:Tuve un esguince jugando fútbol, necesito terapia a domicilio hoy , etc.) y cruza esa información con la base de datos que te di.
 
         Devuelve ÚNICAMENTE un arreglo JSON con los IDs de los fisioterapeutas que mejor coincidan con la búsqueda. Si pide "el más caro", devuelve solo el ID de ese.
         No incluyas markdown, ni comillas extra, solo el arreglo puro. Ejemplo de respuesta: ["id-1", "id-2"]
