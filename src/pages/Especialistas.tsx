@@ -13,7 +13,9 @@ import {
   MessageSquare,
   CheckCircle,
   Activity,
-  Sparkles
+  Sparkles,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 
 import { GoogleGenerativeAI } from '@google/generative-ai';
@@ -37,10 +39,13 @@ export default function Especialistas() {
   // === ESTADOS DE LA IA ===
   const [promptIA, setPromptIA] = useState('');
   const [cargandoIA, setCargandoIA] = useState(false);
-  // NUEVO: Estado para guardar los IDs exactos que la IA decida mostrar
   const [resultadosIAIds, setResultadosIAIds] = useState<string[] | null>(null);
 
-  // 🚀 NUEVA CONEXIÓN IA: "Data-Aware" (Conectada a la base de datos)
+  // === ESTADOS DE PAGINACIÓN ===
+  const [paginaActual, setPaginaActual] = useState(1);
+  const RESULTADOS_POR_PAGINA = 6; // Límite de tarjetas por pantalla
+
+  // 🚀 CONEXIÓN IA: "Data-Aware"
   const procesarBusquedaIA = async () => {
     if (!promptIA.trim()) return;
     setCargandoIA(true);
@@ -52,7 +57,6 @@ export default function Especialistas() {
       const genAI = new GoogleGenerativeAI(apiKey);
       const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
-      // 1. Preparamos una versión ligera de nuestra base de datos para pasársela a la IA
       const baseDeDatosParaIA = fisiosData.map(f => ({
         id: f.id,
         nombre: f.nombre_completo,
@@ -64,7 +68,6 @@ export default function Especialistas() {
         rating: f.rating
       }));
 
-      // 2. El Prompt ahora le da a la IA el poder de analizar los datos directamente
       const promptText = `
         Eres el motor de búsqueda inteligente de Fisiocare.
         A continuación te proporciono un JSON con la base de datos actual de fisioterapeutas:
@@ -81,7 +84,6 @@ export default function Especialistas() {
       const result = await model.generateContent(promptText);
       const responseText = result.response.text();
 
-      // Limpieza del JSON
       const inicioArr = responseText.indexOf('[');
       const finArr = responseText.lastIndexOf(']');
 
@@ -92,9 +94,9 @@ export default function Especialistas() {
       const jsonLimpio = responseText.substring(inicioArr, finArr + 1);
       const idsExtraidos = JSON.parse(jsonLimpio);
 
-      // 3. Aplicamos el resultado directamente
       setResultadosIAIds(idsExtraidos);
       setPromptIA('');
+      setPaginaActual(1); // Regresar a la página 1 al usar IA
 
     } catch (error) {
       console.error("Detalles del error IA:", error);
@@ -104,7 +106,7 @@ export default function Especialistas() {
     }
   };
   
-  // === EFECTO PARA CARGAR DATOS DE SUPABASE ===
+  // === EFECTO PARA CARGAR DATOS ===
   useEffect(() => {
     const cargarDatos = async () => {
       setLoading(true);
@@ -153,9 +155,13 @@ export default function Especialistas() {
     cargarDatos();
   }, []);
 
-  // === LÓGICA DE FILTRADO EN TIEMPO REAL ===
+  // === EFECTO: RESETEAR PÁGINA SI CAMBIA ALGÚN FILTRO ===
+  useEffect(() => {
+    setPaginaActual(1);
+  }, [busqueda, modalidad, distrito, especialidad, precioMax]);
+
+  // === LÓGICA DE FILTRADO ===
   const especialistasFiltrados = fisiosData.filter(fisio => {
-    // Si la IA ha devuelto IDs, SOBREESCRIBIMOS todos los filtros manuales y mostramos solo lo que la IA dedujo
     if (resultadosIAIds !== null) {
       return resultadosIAIds.includes(fisio.id);
     }
@@ -182,13 +188,20 @@ export default function Especialistas() {
     return coincideTexto && coincideModalidad && coincideDistrito && coincideEspecialidad && coincidePrecio;
   });
 
+  // === LÓGICA DE PAGINACIÓN ===
+  const totalPaginas = Math.ceil(especialistasFiltrados.length / RESULTADOS_POR_PAGINA);
+  const indiceInicio = (paginaActual - 1) * RESULTADOS_POR_PAGINA;
+  const indiceFin = indiceInicio + RESULTADOS_POR_PAGINA;
+  const especialistasPaginados = especialistasFiltrados.slice(indiceInicio, indiceFin);
+
   const limpiarFiltros = () => {
     setBusqueda(''); 
     setModalidad('todos'); 
     setEspecialidad('todas'); 
     setDistrito('todos'); 
     setPrecioMax(250);
-    setResultadosIAIds(null); // Limpiamos también el resultado de la IA
+    setResultadosIAIds(null);
+    setPaginaActual(1);
   };
 
   const handleVerPerfil = async (fisioId: string) => {
@@ -228,7 +241,7 @@ export default function Especialistas() {
           </div>
         </div>
 
-        {/* 🤖 BUSCADOR INTELIGENTE (IA CONECTADA A DATOS) */}
+        {/* 🤖 BUSCADOR INTELIGENTE */}
         <div className="bg-gradient-to-r from-[#0A1E3D] to-[#1A5C3A] rounded-3xl p-1 mb-8 shadow-lg">
           <div className="bg-white rounded-[22px] p-6">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
@@ -372,102 +385,130 @@ export default function Especialistas() {
                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#1A5C3A]"></div>
                </div>
             ) : especialistasFiltrados.length > 0 ? (
-              especialistasFiltrados.map((fisio: any) => (
-                <div key={fisio.id} className="bg-white border border-slate-200/60 rounded-2xl p-5 flex flex-col justify-between relative shadow-sm hover:shadow-md transition">
-                  
-                  <div>
-                    <div className="flex items-start gap-4">
-                      <div className="w-[76px] h-[76px] rounded-2xl bg-slate-50 border border-slate-200 flex items-center justify-center text-slate-400 flex-shrink-0 overflow-hidden">
-                        <User className="h-8 w-8 stroke-[1.2]" />
-                      </div>
+              <>
+                {/* MAPEO DE TARJETAS PAGINADAS */}
+                {especialistasPaginados.map((fisio: any) => (
+                  <div key={fisio.id} className="bg-white border border-slate-200/60 rounded-2xl p-5 flex flex-col justify-between relative shadow-sm hover:shadow-md transition">
                     
-                      <div className="space-y-0.5 w-full">
-                        <h3 className="font-body text-base font-bold text-[#0A1E3D] leading-tight">
-                          {fisio.nombre_completo}
-                        </h3>
-
-                        <div className="inline-flex items-center gap-1 bg-[#E8F5EE] text-[#1A6645] font-extrabold text-[9px] px-2 py-0.5 rounded-full border border-[#B8E0CA]/60 tracking-wide uppercase mt-0.5">
-                          <CheckCircle className="h-2.5 w-2.5 fill-current" /> Verificado
+                    <div>
+                      <div className="flex items-start gap-4">
+                        <div className="w-[76px] h-[76px] rounded-2xl bg-slate-50 border border-slate-200 flex items-center justify-center text-slate-400 flex-shrink-0 overflow-hidden">
+                          <User className="h-8 w-8 stroke-[1.2]" />
                         </div>
                       
-                        <p className="text-[10px] text-slate-400 font-medium pt-1">
-                          Colegiatura CFF verificada • {fisio.colegiatura || 'En proceso'}
-                        </p>
-                        
-                        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 pt-1 text-xs">
-                          <div className="flex items-center gap-1">
-                            <Star className="h-3.5 w-3.5 text-amber-400 fill-amber-400" />
-                            <span className="font-bold text-slate-700">{fisio.rating.toFixed(1)}</span>
-                            <span className="text-slate-400 font-light">({fisio.resenas})</span>
+                        <div className="space-y-0.5 w-full">
+                          <h3 className="font-body text-base font-bold text-[#0A1E3D] leading-tight">
+                            {fisio.nombre_completo}
+                          </h3>
+
+                          <div className="inline-flex items-center gap-1 bg-[#E8F5EE] text-[#1A6645] font-extrabold text-[9px] px-2 py-0.5 rounded-full border border-[#B8E0CA]/60 tracking-wide uppercase mt-0.5">
+                            <CheckCircle className="h-2.5 w-2.5 fill-current" /> Verificado
                           </div>
-                          <span className="text-slate-300">|</span>
-                          <span className="font-semibold text-[#1A5C3A]">
-                            {fisio.total_citas} {fisio.total_citas === 1 ? 'cita realizada' : 'citas realizadas'}
-                          </span>
+                        
+                          <p className="text-[10px] text-slate-400 font-medium pt-1">
+                            Colegiatura CFF verificada • {fisio.colegiatura || 'En proceso'}
+                          </p>
+                          
+                          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 pt-1 text-xs">
+                            <div className="flex items-center gap-1">
+                              <Star className="h-3.5 w-3.5 text-amber-400 fill-amber-400" />
+                              <span className="font-bold text-slate-700">{fisio.rating.toFixed(1)}</span>
+                              <span className="text-slate-400 font-light">({fisio.resenas})</span>
+                            </div>
+                            <span className="text-slate-300">|</span>
+                            <span className="font-semibold text-[#1A5C3A]">
+                              {fisio.total_citas} {fisio.total_citas === 1 ? 'cita realizada' : 'citas realizadas'}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="absolute top-5 right-5 text-right">
+                          <p className="text-base font-extrabold text-[#0A1E3D]">S/ {fisio.precio_sesion}</p>
+                          <p className="text-[10px] text-slate-400 font-medium tracking-wide">por sesión</p>
                         </div>
                       </div>
 
-                      <div className="absolute top-5 right-5 text-right">
-                        <p className="text-base font-extrabold text-[#0A1E3D]">S/ {fisio.precio_sesion}</p>
-                        <p className="text-[10px] text-slate-400 font-medium tracking-wide">por sesión</p>
+                      <div className="flex flex-wrap gap-1.5 pt-4 pl-1">
+                        {fisio.especialidades.map((esp: string, i: number) => (
+                          <span key={i} className="bg-slate-50 text-slate-600 text-xs font-medium px-3 py-1 rounded-lg border border-slate-200/50">
+                            {esp}
+                          </span>
+                        ))}
                       </div>
                     </div>
 
-                    <div className="flex flex-wrap gap-1.5 pt-4 pl-1">
-                      {fisio.especialidades.map((esp: string, i: number) => (
-                        <span key={i} className="bg-slate-50 text-slate-600 text-xs font-medium px-3 py-1 rounded-lg border border-slate-200/50">
-                          {esp}
-                        </span>
-                      ))}
+                    <div className="mt-5 pt-4 border-t border-slate-100 space-y-4">
+                      <div className="flex items-center gap-3 text-slate-500 text-xs pl-1">
+                        <div className="h-6 w-6 bg-[#E8F5EE] text-[#1A6645] rounded-full flex items-center justify-center flex-shrink-0">
+                          <Shield className="h-3.5 w-3.5 fill-current" />
+                        </div>
+                        
+                        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-slate-600 font-medium">
+                          <span className="flex items-center gap-1">
+                            <HomeIcon className="h-3.5 w-3.5 text-slate-400" />
+                            {fisio.ofrece_domicilio && 'Domicilio'}
+                            {fisio.ofrece_domicilio && fisio.ofrece_videollamada && ' • '}
+                            {fisio.ofrece_videollamada && 'Videollamada'}
+                          </span>
+                          {fisio.distritos.length > 0 && (
+                            <>
+                              <span className="text-slate-300">|</span>
+                              <span className="flex items-center gap-1 font-light text-slate-500">
+                                <MapPin className="h-3.5 w-3.5 text-slate-400" />
+                                {fisio.distritos.length > 2 
+                                  ? `${fisio.distritos[0]}, ${fisio.distritos[1]} +${fisio.distritos.length - 2}` 
+                                  : fisio.distritos.join(', ')}
+                              </span>
+                            </>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="flex gap-2.5">
+                        <button 
+                          onClick={() => handleVerPerfil(fisio.id)}
+                          className="w-full bg-[#0A1E3D] hover:bg-[#122d5a] text-white font-semibold text-xs py-3 rounded-xl transition shadow-sm"
+                        >
+                          Ver perfil
+                        </button>
+                        
+                        <button 
+                          onClick={() => handleMensaje(fisio)}
+                          title="Enviar mensaje al especialista"
+                          className="h-[42px] w-[42px] border border-slate-200 rounded-xl flex items-center justify-center text-slate-400 hover:text-white hover:bg-[#1A5C3A] hover:border-[#1A5C3A] transition-all flex-shrink-0 cursor-pointer"
+                        >
+                          <MessageSquare className="h-4 w-4" />
+                        </button>
+                      </div>
                     </div>
                   </div>
+                ))}
 
-                  <div className="mt-5 pt-4 border-t border-slate-100 space-y-4">
-                    <div className="flex items-center gap-3 text-slate-500 text-xs pl-1">
-                      <div className="h-6 w-6 bg-[#E8F5EE] text-[#1A6645] rounded-full flex items-center justify-center flex-shrink-0">
-                        <Shield className="h-3.5 w-3.5 fill-current" />
-                      </div>
-                      
-                      <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-slate-600 font-medium">
-                        <span className="flex items-center gap-1">
-                          <HomeIcon className="h-3.5 w-3.5 text-slate-400" />
-                          {fisio.ofrece_domicilio && 'Domicilio'}
-                          {fisio.ofrece_domicilio && fisio.ofrece_videollamada && ' • '}
-                          {fisio.ofrece_videollamada && 'Videollamada'}
-                        </span>
-                        {fisio.distritos.length > 0 && (
-                          <>
-                            <span className="text-slate-300">|</span>
-                            <span className="flex items-center gap-1 font-light text-slate-500">
-                              <MapPin className="h-3.5 w-3.5 text-slate-400" />
-                              {fisio.distritos.length > 2 
-                                ? `${fisio.distritos[0]}, ${fisio.distritos[1]} +${fisio.distritos.length - 2}` 
-                                : fisio.distritos.join(', ')}
-                            </span>
-                          </>
-                        )}
-                      </div>
-                    </div>
+                {/* CONTROLES DE PAGINACIÓN */}
+                {totalPaginas > 1 && (
+                  <div className="col-span-full flex items-center justify-center gap-4 mt-6">
+                    <button
+                      onClick={() => setPaginaActual(prev => Math.max(prev - 1, 1))}
+                      disabled={paginaActual === 1}
+                      className="p-2 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-[#0A1E3D] disabled:opacity-40 disabled:cursor-not-allowed transition"
+                    >
+                      <ChevronLeft className="h-5 w-5" />
+                    </button>
+                    
+                    <span className="text-sm font-medium text-slate-500">
+                      Página <span className="text-[#0A1E3D] font-bold">{paginaActual}</span> de {totalPaginas}
+                    </span>
 
-                    <div className="flex gap-2.5">
-                      <button 
-                        onClick={() => handleVerPerfil(fisio.id)}
-                        className="w-full bg-[#0A1E3D] hover:bg-[#122d5a] text-white font-semibold text-xs py-3 rounded-xl transition shadow-sm"
-                      >
-                        Ver perfil
-                      </button>
-                      
-                      <button 
-                        onClick={() => handleMensaje(fisio)}
-                        title="Enviar mensaje al especialista"
-                        className="h-[42px] w-[42px] border border-slate-200 rounded-xl flex items-center justify-center text-slate-400 hover:text-white hover:bg-[#1A5C3A] hover:border-[#1A5C3A] transition-all flex-shrink-0 cursor-pointer"
-                      >
-                        <MessageSquare className="h-4 w-4" />
-                      </button>
-                    </div>
+                    <button
+                      onClick={() => setPaginaActual(prev => Math.min(prev + 1, totalPaginas))}
+                      disabled={paginaActual === totalPaginas}
+                      className="p-2 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-[#0A1E3D] disabled:opacity-40 disabled:cursor-not-allowed transition"
+                    >
+                      <ChevronRight className="h-5 w-5" />
+                    </button>
                   </div>
-                </div>
-              ))
+                )}
+              </>
             ) : (
               <div className="col-span-full bg-slate-50 rounded-2xl border border-dashed border-slate-200 p-12 text-center">
                 <p className="text-sm text-slate-400 font-light">
